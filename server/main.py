@@ -88,26 +88,42 @@ async def get_image(prompt: str):
     
     async with image_semaphore:
         async with httpx.AsyncClient() as client:
+            
+            # 1. Try Hugging Face Stable Diffusion XL if API key is provided (Best Quality)
+            hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
+            if hf_api_key:
+                print("Attempting Hugging Face API generation...")
+                hf_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+                headers = {"Authorization": f"Bearer {hf_api_key}"}
+                try:
+                    resp = await client.post(hf_url, headers=headers, json={"inputs": prompt}, timeout=60.0)
+                    if resp.status_code == 200:
+                        return Response(content=resp.content, media_type="image/jpeg")
+                    else:
+                        print(f"Hugging Face API failed with status {resp.status_code}: {resp.text}")
+                except Exception as e:
+                    print(f"Hugging Face API exception: {e}")
+
+            # 2. Fallback to Pollinations (Free public AI)
             last_error = None
             for attempt in range(3):
                 seed = random.randint(1, 100000)
-                url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&seed={seed}"
+                # Appending &model=flux forces it to use the stable FLUX model instead of their default broken turbo model
+                url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&seed={seed}&model=flux"
                 try:
-                    resp = await client.get(url, timeout=20.0, follow_redirects=True)
+                    resp = await client.get(url, timeout=30.0, follow_redirects=True)
                     if resp.status_code == 200:
                         return Response(content=resp.content, media_type="image/jpeg")
                     if resp.status_code == 402:
-                        # 402 means free quota exhausted, break to fallback
-                        print("Pollinations API 402 Payment Required - Quota Exhausted")
-                        break
+                        print("Pollinations API 402 Payment Required - Quota Exhausted for this model")
                     last_error = f"HTTP {resp.status_code}"
                 except Exception as e:
                     last_error = str(e)
                 
-                print(f"Attempt {attempt + 1} failed for {safe_prompt[:20]}... Error: {last_error}")
+                print(f"Pollinations Attempt {attempt + 1} failed... Error: {last_error}")
                 await asyncio.sleep(2)
                 
-            # If Pollinations completely fails or hits 402 quota limit, fallback to stock photos based on prompt keywords
+            # 3. Final Fallback to Stock Photos (To prevent app crash)
             try:
                 words = [w for w in prompt.split() if len(w) > 4]
                 keyword = urllib.parse.quote(words[0]) if words else "scifi"
@@ -118,7 +134,7 @@ async def get_image(prompt: str):
             except Exception as e:
                 print(f"Fallback also failed: {e}")
                 
-            raise HTTPException(status_code=500, detail=f"Image fetch failed entirely. Pollinations error: {last_error}")
+            raise HTTPException(status_code=500, detail="All image generation methods failed.")
 
 @app.get("/api/health")
 def health_check():
