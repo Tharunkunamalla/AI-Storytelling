@@ -54,7 +54,8 @@ A full-stack application that generates cinematic stories using AI. This represe
    ```
 4. Open the provided local URL (usually `http://localhost:5173`) in your browser to start generating stories!
 
-## Future Phases
+<!--## Future Phases
 - **Phase 2**: Add Image Generation (Stable Diffusion API)
 - **Phase 3**: Add Voice Narration (ElevenLabs / Google TTS)
 - **Phase 4**: Convert into Video Reels
+-->
