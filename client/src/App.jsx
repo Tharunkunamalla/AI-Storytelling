@@ -3,9 +3,39 @@ import { Sparkles, Loader2, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
+const SceneImage = ({ scene, index }) => {
+  const [imgLoading, setImgLoading] = useState(true);
+
+  return (
+    <div className="scene-image-wrapper">
+      {imgLoading && (
+        <div className="image-loader">
+          <Loader2 className="spinner" size={32} />
+          <span>Generating scene...</span>
+        </div>
+      )}
+      <img
+        src={`http://localhost:8000/api/image?prompt=${encodeURIComponent(scene.image_prompt.replace(/[^a-zA-Z0-9 ,]/g, '').replace(/\s+/g, ' ').trim().slice(0, 150))}`}
+        alt={`Scene ${index + 1}`}
+        className={`scene-image ${imgLoading ? 'hidden' : ''}`}
+        loading="lazy"
+        onLoad={() => setImgLoading(false)}
+        onError={(e) => {
+          if (!e.target.dataset.retried) {
+            e.target.dataset.retried = true;
+            e.target.src = `http://localhost:8000/api/image?prompt=cinematic+scene+masterpiece`;
+          } else {
+            setImgLoading(false);
+          }
+        }}
+      />
+    </div>
+  );
+};
+
 function App() {
   const [prompt, setPrompt] = useState('');
-  const [story, setStory] = useState('');
+  const [storyData, setStoryData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,7 +45,7 @@ function App() {
 
     setLoading(true);
     setError('');
-    setStory('');
+    setStoryData(null);
 
     try {
       const response = await fetch('http://localhost:8000/api/generate-story', {
@@ -32,7 +62,7 @@ function App() {
       }
 
       const data = await response.json();
-      setStory(data.story);
+      setStoryData(data);
     } catch (err) {
       setError(err.message || 'An error occurred while generating your story. Please try again.');
       console.error(err);
@@ -51,7 +81,7 @@ function App() {
         >
           <div className="phase-badge glass-panel">
             <Sparkles className="icon" size={24} />
-            <span>Phase 1: AI Story Generator</span>
+            <span>Phase 2: Story + Image Generator</span>
           </div>
           <h1 className="title gradient-text">
             Weave Worlds with Words
@@ -109,7 +139,7 @@ function App() {
             </motion.div>
           )}
 
-          {story && (
+          {storyData && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -118,10 +148,14 @@ function App() {
             >
               <div className="story-gradient-bar" />
               <div className="story-content">
-                {story.split('\n').filter(p => p.trim()).map((paragraph, i) => (
-                  <p key={i} className="story-paragraph">
-                    {paragraph}
-                  </p>
+                <h2 className="story-title">{storyData.title}</h2>
+                {storyData.scenes.map((scene, i) => (
+                  <div key={i} className="scene-container">
+                    <SceneImage scene={scene} index={i} />
+                    <p className="story-paragraph">
+                      {scene.text}
+                    </p>
+                  </div>
                 ))}
               </div>
             </motion.div>
