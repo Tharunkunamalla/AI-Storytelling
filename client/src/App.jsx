@@ -204,7 +204,7 @@ const StoryViewer = ({ storyData, onReset }) => {
        </button>
 
        <AnimatePresence>
-         {isFinished && (
+         {isFinished && !timerPaused && (
            <motion.div 
              className="story-finished-overlay"
              initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
@@ -215,17 +215,15 @@ const StoryViewer = ({ storyData, onReset }) => {
                <h2 className="gradient-text">The End</h2>
                <p>I hope you enjoyed this cinematic journey.</p>
                <div className="countdown-ring">
-                 {timerPaused ? "Timer Paused" : `Closing in ${countdown}s`}
+                 Closing in {countdown}s
                </div>
                <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                 {!timerPaused && (
-                   <button 
-                     className="speed-btn glass-panel" 
-                     onClick={() => setTimerPaused(true)}
-                   >
-                     Stay & Read
-                   </button>
-                 )}
+                 <button 
+                   className="speed-btn glass-panel" 
+                   onClick={() => setTimerPaused(true)}
+                 >
+                   Stay & Read
+                 </button>
                  <button className="submit-btn" onClick={onReset} style={{ margin: 0, width: 'auto' }}>
                    Finish Now
                  </button>
