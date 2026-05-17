@@ -506,9 +506,11 @@ function App() {
               </motion.form>
               
               {preloading && (
-                <div className="preload-bar-container glass-panel">
-                   <div className="preload-bar-fill" style={{ width: `${preloadProgress}%` }}></div>
+                <div className="preload-bar-container">
                    <div className="preload-text">Generating images & voice narration... {preloadProgress}%</div>
+                   <div className="preload-bar-track">
+                     <div className="preload-bar-fill" style={{ width: `${preloadProgress}%` }}></div>
+                   </div>
                 </div>
               )}
 
@@ -531,7 +533,7 @@ function App() {
                 href="https://github.com/Tharunkunamalla" 
                 target="_blank" 
                 rel="noreferrer"
-                className="developed-by glass-panel"
+                className="developed-by"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
