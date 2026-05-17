@@ -434,10 +434,25 @@ function App() {
                   <Sparkles className="icon" size={24} color="#ec4848ff" />
                   <span style={{color: "#cf7171ff"}}>Powered by AI</span>
                 </div>
-                <h1 className="title gradient-text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                  <img src="/logo.png" alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
-                  MythWeaver
-                </h1>
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px' }}>
+                  <img 
+                    src="/logo.png" 
+                    alt="Background Logo" 
+                    style={{ 
+                      position: 'absolute', 
+                      width: '300px', 
+                      height: '300px', 
+                      objectFit: 'contain', 
+                      opacity: 0.12, 
+                      filter: 'blur(6px)', 
+                      zIndex: 0, 
+                      pointerEvents: 'none' 
+                    }} 
+                  />
+                  <h1 className="title gradient-text" style={{ position: 'relative', zIndex: 1, margin: 0 }}>
+                    MythWeaver
+                  </h1>
+                </div>
                 <p className="subtitle">
                   Enter a prompt and watch as AI crafts a cinematic narrative just for you.
                 </p>
