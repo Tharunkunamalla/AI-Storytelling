@@ -109,16 +109,17 @@ const StoryViewer = ({ storyData, onReset }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [countdown, setCountdown] = useState(10);
+  const [timerPaused, setTimerPaused] = useState(false);
 
   useEffect(() => {
     let timer;
-    if (isFinished && countdown > 0) {
+    if (isFinished && countdown > 0 && !timerPaused) {
       timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    } else if (isFinished && countdown === 0) {
+    } else if (isFinished && countdown === 0 && !timerPaused) {
       onReset();
     }
     return () => clearTimeout(timer);
-  }, [isFinished, countdown, onReset]);
+  }, [isFinished, countdown, timerPaused, onReset]);
 
   const nextSlide = () => {
     if (currentSlide < storyData.scenes.length - 1) {
@@ -214,11 +215,21 @@ const StoryViewer = ({ storyData, onReset }) => {
                <h2 className="gradient-text">The End</h2>
                <p>I hope you enjoyed this cinematic journey.</p>
                <div className="countdown-ring">
-                 Closing in {countdown}s
+                 {timerPaused ? "Timer Paused" : `Closing in ${countdown}s`}
                </div>
-               <button className="submit-btn" onClick={onReset} style={{ marginTop: '20px', width: 'auto' }}>
-                 Finish Now
-               </button>
+               <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                 {!timerPaused && (
+                   <button 
+                     className="speed-btn glass-panel" 
+                     onClick={() => setTimerPaused(true)}
+                   >
+                     Stay & Read
+                   </button>
+                 )}
+                 <button className="submit-btn" onClick={onReset} style={{ margin: 0, width: 'auto' }}>
+                   Finish Now
+                 </button>
+               </div>
              </div>
            </motion.div>
          )}
