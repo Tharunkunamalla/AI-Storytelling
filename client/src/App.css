@@ -6,6 +6,60 @@
   position: relative;
 }
 
+/* --- Background Objects --- */
+.bg-objects {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.4;
+  animation: floatOrb 20s infinite ease-in-out alternate;
+}
+
+.orb-1 {
+  width: 500px;
+  height: 500px;
+  background: var(--primary);
+  top: -150px;
+  left: -150px;
+  animation-delay: 0s;
+}
+
+.orb-2 {
+  width: 600px;
+  height: 600px;
+  background: #fb7185;
+  bottom: -200px;
+  right: -200px;
+  animation-delay: -5s;
+}
+
+.orb-3 {
+  width: 450px;
+  height: 450px;
+  background: #881337;
+  top: 30%;
+  left: 40%;
+  animation-delay: -10s;
+}
+
+@keyframes floatOrb {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(60px, -60px) scale(1.1); }
+  66% { transform: translate(-40px, 50px) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
 .home-view {
   min-height: 100vh;
   padding: 40px 24px;
@@ -136,7 +190,7 @@
 }
 
 .submit-btn:disabled {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(214, 53, 53, 0.5);
   cursor: not-allowed;
 }
 
@@ -481,7 +535,7 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  background: linear-gradient(90deg, #e11d48, #fb7185);
   transition: width 0.3s ease;
   z-index: 1;
 }

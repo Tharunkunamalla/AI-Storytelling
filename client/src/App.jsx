@@ -151,15 +151,6 @@ function App() {
   const [preloading, setPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
   const [error, setError] = useState('');
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const generateStory = async (e) => {
     e.preventDefault();
@@ -236,13 +227,11 @@ function App() {
 
   return (
     <div className="app-container">
-      <div 
-        className="mouse-glow" 
-        style={{ 
-          left: mousePos.x, 
-          top: mousePos.y 
-        }} 
-      />
+      <div className="bg-objects">
+        <div className="orb orb-1"></div>
+        <div className="orb orb-2"></div>
+        <div className="orb orb-3"></div>
+      </div>
       <AnimatePresence>
         {!storyData ? (
           <motion.div 
@@ -258,8 +247,8 @@ function App() {
                 transition={{ duration: 0.5 }}
               >
                 <div className="phase-badge glass-panel">
-                  <Sparkles className="icon" size={24} />
-                  <span>Phase 3: Story, Image & Voice Generator</span>
+                  <Sparkles className="icon" size={24} color="#ec4848ff" />
+                  <span>Powered by AI</span>
                 </div>
                 <h1 className="title gradient-text">
                   MythWeaver

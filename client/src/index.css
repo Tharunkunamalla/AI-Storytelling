@@ -1,18 +1,18 @@
 :root {
   --font-primary: 'Outfit', system-ui, sans-serif;
-  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-  --glass-bg: rgba(255, 255, 255, 0.05);
+  --bg-solid: #09090b;
+  --glass-bg: rgba(25, 25, 30, 0.6);
   --glass-border: rgba(255, 255, 255, 0.1);
-  --primary: #8b5cf6;
-  --primary-hover: #a78bfa;
+  --primary: #e11d48;
+  --primary-hover: #be123c;
   --text-main: #f8fafc;
-  --text-muted: #cbd5e1;
+  --text-muted: #a1a1aa;
 }
 
 body {
   margin: 0;
   font-family: var(--font-primary);
-  background: var(--bg-gradient);
+  background: var(--bg-solid);
   color: var(--text-main);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -31,18 +31,16 @@ body {
 
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
 .gradient-text {
-  background: linear-gradient(to right, #a855f7, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #f43f5e;
+  text-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
 }
 
 ::-webkit-scrollbar {
