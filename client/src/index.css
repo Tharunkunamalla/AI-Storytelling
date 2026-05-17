@@ -19,6 +19,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+::selection {
+  background: rgba(225, 29, 72, 0.5); /* Semi-transparent primary */
+  color: #fff;
+}
+
+::-moz-selection {
+  background: rgba(225, 29, 72, 0.5);
+  color: #fff;
+}
+
 #root {
   min-height: 100vh;
   display: flex;

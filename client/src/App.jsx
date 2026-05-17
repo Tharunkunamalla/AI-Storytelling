@@ -107,10 +107,24 @@ const InteractiveAudioText = ({ text, audioUrl, onEnded, isActive }) => {
 
 const StoryViewer = ({ storyData, onReset }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    let timer;
+    if (isFinished && countdown > 0) {
+      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    } else if (isFinished && countdown === 0) {
+      onReset();
+    }
+    return () => clearTimeout(timer);
+  }, [isFinished, countdown, onReset]);
 
   const nextSlide = () => {
     if (currentSlide < storyData.scenes.length - 1) {
       setCurrentSlide(prev => prev + 1);
+    } else {
+      setIsFinished(true);
     }
   };
 
@@ -187,6 +201,28 @@ const StoryViewer = ({ storyData, onReset }) => {
        <button className="close-story-btn glass-panel" onClick={onReset}>
          <X size={24} />
        </button>
+
+       <AnimatePresence>
+         {isFinished && (
+           <motion.div 
+             className="story-finished-overlay"
+             initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+             animate={{ opacity: 1, backdropFilter: 'blur(10px)' }}
+             exit={{ opacity: 0 }}
+           >
+             <div className="glass-panel finished-modal">
+               <h2 className="gradient-text">The End</h2>
+               <p>I hope you enjoyed this cinematic journey.</p>
+               <div className="countdown-ring">
+                 Closing in {countdown}s
+               </div>
+               <button className="submit-btn" onClick={onReset} style={{ marginTop: '20px', width: 'auto' }}>
+                 Finish Now
+               </button>
+             </div>
+           </motion.div>
+         )}
+       </AnimatePresence>
     </motion.div>
   );
 };
