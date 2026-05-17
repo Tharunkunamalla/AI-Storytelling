@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X } from 'lucide-react';
+import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
@@ -138,6 +138,90 @@ const StoryViewer = ({ storyData, onReset }) => {
     }
   };
 
+  const downloadStory = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Load Logo for Watermark
+    let logoDataUrl = null;
+    try {
+      const img = new Image();
+      img.src = '/logo.png';
+      await new Promise((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      logoDataUrl = canvas.toDataURL('image/png');
+    } catch(e) {}
+    
+    const addWatermark = (pdfDoc) => {
+      pdfDoc.setGState(new pdfDoc.GState({opacity: 0.1}));
+      
+      if (logoDataUrl) {
+         pdfDoc.addImage(logoDataUrl, 'PNG', (pageWidth/2) - 40, (pageHeight/2) - 60, 80, 80);
+      }
+      
+      pdfDoc.setFont("helvetica", "bold");
+      pdfDoc.setFontSize(40);
+      pdfDoc.setTextColor(150, 150, 150);
+      pdfDoc.text("MythWeaver", pageWidth / 2, (pageHeight / 2) + 40, {
+        align: "center",
+      });
+      pdfDoc.setGState(new pdfDoc.GState({opacity: 1.0}));
+      pdfDoc.setTextColor(0, 0, 0); // reset to black
+    };
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.text(storyData.title, 20, 30);
+    
+    doc.setLineWidth(0.5);
+    doc.line(20, 35, pageWidth - 20, 35);
+    
+    addWatermark(doc);
+    
+    let yPos = 50;
+    
+    storyData.scenes.forEach((scene, index) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text(`Part ${index + 1}`, 20, yPos);
+      yPos += 10;
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      
+      const splitText = doc.splitTextToSize(scene.text, pageWidth - 40);
+      
+      splitText.forEach(line => {
+        if (yPos > pageHeight - 20) {
+          doc.addPage();
+          addWatermark(doc);
+          yPos = 30;
+        }
+        doc.text(line, 20, yPos);
+        yPos += 7;
+      });
+      yPos += 10;
+      
+      if (yPos > pageHeight - 30 && index < storyData.scenes.length - 1) {
+          doc.addPage();
+          addWatermark(doc);
+          yPos = 30;
+      }
+    });
+
+    doc.save(`${storyData.title.replace(/\s+/g, '_')}.pdf`);
+  };
+
   return (
     <motion.div 
       className="story-viewer-fullscreen"
@@ -202,9 +286,14 @@ const StoryViewer = ({ storyData, onReset }) => {
           </button>
        </div>
 
-       <button className="close-story-btn glass-panel" onClick={onReset}>
-         <X size={24} />
-       </button>
+       <div className="top-right-controls">
+         <button className="top-control-btn glass-panel" onClick={downloadStory} title="Download Story">
+           <Download size={24} />
+         </button>
+         <button className="top-control-btn close-btn glass-panel" onClick={onReset} title="Close Story">
+           <X size={24} />
+         </button>
+       </div>
 
        <AnimatePresence>
          {isFinished && !timerPaused && (
@@ -345,7 +434,8 @@ function App() {
                   <Sparkles className="icon" size={24} color="#ec4848ff" />
                   <span style={{color: "#cf7171ff"}}>Powered by AI</span>
                 </div>
-                <h1 className="title gradient-text">
+                <h1 className="title gradient-text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+                  <img src="/logo.png" alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
                   MythWeaver
                 </h1>
                 <p className="subtitle">

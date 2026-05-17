@@ -338,7 +338,7 @@
   color: #f8fafc;
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
   margin: 0;
-  margin-bottom: 32px;
+  margin-bottom: 15px;
 }
 
 .word {
@@ -357,6 +357,7 @@
 }
 
 .audio-player-container {
+  margin-bottom: 30px;
   padding: 12px 24px;
   border-radius: 100px;
   display: flex;
@@ -555,11 +556,16 @@
   box-shadow: 0 0 10px var(--primary);
 }
 
-.close-story-btn {
+.top-right-controls {
   position: absolute;
   top: 40px;
   right: 40px;
   z-index: 10;
+  display: flex;
+  gap: 16px;
+}
+
+.top-control-btn {
   background: rgba(0, 0, 0, 0.3) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   color: white;
@@ -573,9 +579,13 @@
   transition: all 0.2s ease;
 }
 
-.close-story-btn:hover {
+.top-control-btn:hover {
   background: rgba(239, 68, 68, 0.4) !important;
   border-color: rgba(239, 68, 68, 0.6) !important;
+  transform: scale(1.05);
+}
+
+.top-control-btn.close-btn:hover {
   transform: scale(1.05) rotate(90deg);
 }
 
