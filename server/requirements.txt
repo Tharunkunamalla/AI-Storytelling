@@ -7,3 +7,4 @@ pydantic
 loguru
 huggingface_hub
 Pillow
+gTTS

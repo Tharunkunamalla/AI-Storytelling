@@ -81,7 +81,7 @@ function App() {
         >
           <div className="phase-badge glass-panel">
             <Sparkles className="icon" size={24} />
-            <span>Phase 2: Story + Image Generator</span>
+            <span>Phase 3: Story, Image & Voice Generator</span>
           </div>
           <h1 className="title gradient-text">
             Weave Worlds with Words
@@ -155,6 +155,12 @@ function App() {
                     <p className="story-paragraph">
                       {scene.text}
                     </p>
+                    <audio 
+                      controls 
+                      className="scene-audio" 
+                      src={`http://localhost:8000/api/audio?text=${encodeURIComponent(scene.text)}`} 
+                      preload="none"
+                    />
                   </div>
                 ))}
               </div>

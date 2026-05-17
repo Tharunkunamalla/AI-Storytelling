@@ -137,6 +137,54 @@ async def get_image(prompt: str):
                 
             raise HTTPException(status_code=500, detail="All image generation methods failed.")
 
+@app.get("/api/audio")
+async def get_audio(text: str):
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+        
+    elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+    
+    if elevenlabs_api_key:
+        # Use ElevenLabs with a standard voice id (Rachel)
+        voice_id = "21m00Tcm4TlvDq8ikWAM"
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        headers = {
+            "Accept": "audio/mpeg",
+            "Content-Type": "application/json",
+            "xi-api-key": elevenlabs_api_key
+        }
+        data = {
+            "text": text,
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.5
+            }
+        }
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(url, json=data, headers=headers, timeout=30.0)
+                if resp.status_code == 200:
+                    return Response(content=resp.content, media_type="audio/mpeg")
+                else:
+                    print(f"ElevenLabs error {resp.status_code}: {resp.text}")
+            except Exception as e:
+                print(f"ElevenLabs exception: {e}")
+
+    # Fallback to Google TTS
+    try:
+        from gtts import gTTS
+        import io
+        tts = gTTS(text=text, lang='en')
+        buf = io.BytesIO()
+        tts.write_to_fp(buf)
+        return Response(content=buf.getvalue(), media_type="audio/mpeg")
+    except Exception as e:
+        print(f"gTTS exception: {e}")
+        raise HTTPException(status_code=500, detail="Audio generation failed")
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
