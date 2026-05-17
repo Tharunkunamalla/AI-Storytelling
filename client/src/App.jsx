@@ -175,7 +175,7 @@ const StoryViewer = ({ storyData, onReset }) => {
                  initial={{ y: 20, opacity: 0 }}
                  animate={{ y: 0, opacity: 1 }}
                  transition={{ delay: 0.6 }}
-                 className="scene-text-container glass-panel"
+                 className="scene-text-container"
                >
                  <InteractiveAudioText 
                     text={storyData.scenes[currentSlide].text}
