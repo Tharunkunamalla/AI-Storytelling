@@ -1,22 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Loader2, BookOpen, Volume2, ChevronRight, ChevronLeft, Play, Pause, X } from 'lucide-react';
+import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
-const CustomAudioPlayer = ({ text, onEnded, isActive }) => {
-  const [audioUrl, setAudioUrl] = useState('');
-  const [loading, setLoading] = useState(true);
+const CustomAudioPlayer = ({ audioUrl, onEnded, isActive }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => {
-    setLoading(true);
-    const url = `http://localhost:8000/api/audio?text=${encodeURIComponent(text)}`;
-    setAudioUrl(url);
-  }, [text]);
-
-  useEffect(() => {
-    if (isActive && audioRef.current && !loading) {
+    if (isActive && audioRef.current) {
       audioRef.current.play().catch(e => {
         console.log("Autoplay prevented:", e);
         setPlaying(false);
@@ -25,7 +17,7 @@ const CustomAudioPlayer = ({ text, onEnded, isActive }) => {
       audioRef.current.pause();
       setPlaying(false);
     }
-  }, [isActive, loading]);
+  }, [isActive, audioUrl]);
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -39,49 +31,33 @@ const CustomAudioPlayer = ({ text, onEnded, isActive }) => {
 
   return (
     <div className="audio-player-container glass-panel">
-      {loading && (
-        <div className="audio-loading">
-          <Loader2 className="spinner" size={18} />
-          <span>Synthesizing Voice...</span>
-        </div>
-      )}
       <audio
         ref={audioRef}
         src={audioUrl}
-        onLoadedData={() => setLoading(false)}
-        onCanPlayThrough={() => setLoading(false)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={onEnded}
         className="hidden-audio"
       />
-      {!loading && (
-        <div className="audio-controls">
-          <button className="icon-btn" onClick={handlePlayPause}>
-            {playing ? <Pause size={24} /> : <Play size={24} />}
-          </button>
-          <div className={`audio-visualizer ${playing ? 'playing' : ''}`}>
-             <div className="bar"></div>
-             <div className="bar"></div>
-             <div className="bar"></div>
-             <div className="bar"></div>
-             <div className="bar"></div>
-          </div>
-          <span className="audio-status">{playing ? 'Playing narration...' : 'Paused'}</span>
+      <div className="audio-controls">
+        <button className="icon-btn" onClick={handlePlayPause}>
+          {playing ? <Pause size={24} /> : <Play size={24} />}
+        </button>
+        <div className={`audio-visualizer ${playing ? 'playing' : ''}`}>
+           <div className="bar"></div>
+           <div className="bar"></div>
+           <div className="bar"></div>
+           <div className="bar"></div>
+           <div className="bar"></div>
         </div>
-      )}
+        <span className="audio-status">{playing ? 'Playing narration...' : 'Paused'}</span>
+      </div>
     </div>
   );
 };
 
 const StoryViewer = ({ storyData, onReset }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [imgLoading, setImgLoading] = useState(true);
-
-  // Reset image loading state when slide changes
-  useEffect(() => {
-    setImgLoading(true);
-  }, [currentSlide]);
 
   const nextSlide = () => {
     if (currentSlide < storyData.scenes.length - 1) {
@@ -93,10 +69,6 @@ const StoryViewer = ({ storyData, onReset }) => {
     if (currentSlide > 0) {
       setCurrentSlide(prev => prev - 1);
     }
-  };
-
-  const getImageUrl = (prompt) => {
-    return `http://localhost:8000/api/image?prompt=${encodeURIComponent(prompt.replace(/[^a-zA-Z0-9 ,]/g, '').replace(/\s+/g, ' ').trim().slice(0, 150))}`;
   };
 
   return (
@@ -115,25 +87,10 @@ const StoryViewer = ({ storyData, onReset }) => {
             transition={{ duration: 0.8, ease: "easeInOut" }}
             className="scene-slide"
           >
-             {imgLoading && (
-               <div className="fullscreen-loader">
-                 <Loader2 className="spinner" size={48} />
-                 <span>Envisioning scene...</span>
-               </div>
-             )}
              <img 
-               src={getImageUrl(storyData.scenes[currentSlide].image_prompt)} 
+               src={storyData.scenes[currentSlide].cachedImageUrl} 
                alt="Scene Background"
-               className={`scene-bg-image ${imgLoading ? 'hidden' : ''}`}
-               onLoad={() => setImgLoading(false)}
-               onError={(e) => {
-                  if (!e.target.dataset.retried) {
-                    e.target.dataset.retried = true;
-                    e.target.src = 'http://localhost:8000/api/image?prompt=cinematic+scene+masterpiece';
-                  } else {
-                    setImgLoading(false);
-                  }
-               }}
+               className="scene-bg-image"
              />
              <div className="scene-overlay"></div>
              
@@ -157,7 +114,7 @@ const StoryViewer = ({ storyData, onReset }) => {
                    {storyData.scenes[currentSlide].text}
                  </p>
                  <CustomAudioPlayer 
-                    text={storyData.scenes[currentSlide].text}
+                    audioUrl={storyData.scenes[currentSlide].cachedAudioUrl}
                     isActive={true}
                     onEnded={nextSlide}
                  />
@@ -191,7 +148,18 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [storyData, setStoryData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [preloading, setPreloading] = useState(false);
+  const [preloadProgress, setPreloadProgress] = useState(0);
   const [error, setError] = useState('');
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   const generateStory = async (e) => {
     e.preventDefault();
@@ -201,6 +169,7 @@ function App() {
     setError('');
     
     try {
+      // 1. Generate text first
       const response = await fetch('http://localhost:8000/api/generate-story', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,17 +182,67 @@ function App() {
       }
 
       const data = await response.json();
+      
+      // 2. Preload all assets (images + audio) before showing
+      setLoading(false);
+      setPreloading(true);
+      
+      const totalAssets = data.scenes.length * 2;
+      let loaded = 0;
+      
+      const updateProgress = () => {
+        loaded++;
+        setPreloadProgress(Math.round((loaded / totalAssets) * 100));
+      };
+
+      const promises = data.scenes.map(async (scene) => {
+         // Preload Image
+         const imgPrompt = encodeURIComponent(scene.image_prompt.replace(/[^a-zA-Z0-9 ,]/g, '').replace(/\s+/g, ' ').trim().slice(0, 150));
+         const imgUrl = `http://localhost:8000/api/image?prompt=${imgPrompt}`;
+         try {
+           const imgRes = await fetch(imgUrl);
+           const imgBlob = await imgRes.blob();
+           scene.cachedImageUrl = URL.createObjectURL(imgBlob);
+         } catch(e) {
+           scene.cachedImageUrl = imgUrl; // fallback
+         }
+         updateProgress();
+
+         // Preload Audio
+         const audioUrl = `http://localhost:8000/api/audio?text=${encodeURIComponent(scene.text)}`;
+         try {
+           const audioRes = await fetch(audioUrl);
+           const audioBlob = await audioRes.blob();
+           scene.cachedAudioUrl = URL.createObjectURL(audioBlob);
+         } catch(e) {
+           scene.cachedAudioUrl = audioUrl; // fallback
+         }
+         updateProgress();
+      });
+      
+      await Promise.all(promises);
+      
       setStoryData(data);
+      setPreloading(false);
+      setPreloadProgress(0);
+      setPrompt('');
     } catch (err) {
       setError(err.message || 'An error occurred while generating your story. Please try again.');
       console.error(err);
-    } finally {
       setLoading(false);
+      setPreloading(false);
     }
   };
 
   return (
     <div className="app-container">
+      <div 
+        className="mouse-glow" 
+        style={{ 
+          left: mousePos.x, 
+          top: mousePos.y 
+        }} 
+      />
       <AnimatePresence>
         {!storyData ? (
           <motion.div 
@@ -243,7 +262,7 @@ function App() {
                   <span>Phase 3: Story, Image & Voice Generator</span>
                 </div>
                 <h1 className="title gradient-text">
-                  Weave Worlds with Words
+                  MythWeaver
                 </h1>
                 <p className="subtitle">
                   Enter a prompt and watch as AI crafts a cinematic narrative just for you.
@@ -265,17 +284,22 @@ function App() {
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="A dragon protecting a futuristic city..."
                   className="prompt-input"
-                  disabled={loading}
+                  disabled={loading || preloading}
                 />
                 <button
                   type="submit"
-                  disabled={loading || !prompt.trim()}
+                  disabled={loading || preloading || !prompt.trim()}
                   className="submit-btn"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="spinner" size={20} />
-                      <span>Generating...</span>
+                      <span>Writing Story...</span>
+                    </>
+                  ) : preloading ? (
+                    <>
+                      <Loader2 className="spinner" size={20} />
+                      <span>{preloadProgress}% Loaded</span>
                     </>
                   ) : (
                     <>
@@ -285,6 +309,13 @@ function App() {
                   )}
                 </button>
               </motion.form>
+              
+              {preloading && (
+                <div className="preload-bar-container glass-panel">
+                   <div className="preload-bar-fill" style={{ width: `${preloadProgress}%` }}></div>
+                   <div className="preload-text">Generating images & voice narration... {preloadProgress}%</div>
+                </div>
+              )}
 
               <AnimatePresence>
                 {error && (
