@@ -50,7 +50,7 @@ body {
 
 .gradient-text {
   color: #f43f5e;
-  text-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.2);
 }
 
 ::-webkit-scrollbar {

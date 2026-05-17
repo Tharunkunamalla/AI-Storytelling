@@ -434,21 +434,27 @@ function App() {
                   <Sparkles className="icon" size={24} color="#ec4848ff" />
                   <span style={{color: "#cf7171ff"}}>Powered by AI</span>
                 </div>
-                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px' }}>
-                  <img 
-                    src="/logo.png" 
-                    alt="Background Logo" 
-                    style={{ 
-                      position: 'absolute', 
-                      width: '300px', 
-                      height: '300px', 
-                      objectFit: 'contain', 
-                      opacity: 0.12, 
-                      filter: 'blur(6px)', 
-                      zIndex: 0, 
-                      pointerEvents: 'none' 
-                    }} 
-                  />
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', width: '100%' }}>
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: '40%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      fontSize: 'clamp(80px, 15vw, 180px)',
+                      fontWeight: 900,
+                      color: 'transparent',
+                      WebkitTextStroke: '1px rgba(225, 29, 72, 0.15)',
+                      whiteSpace: 'nowrap',
+                      zIndex: 0,
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      letterSpacing: '8px'
+                    }}
+                  >
+                    MYTHWEAVER
+                  </div>
+
                   <h1 className="title gradient-text" style={{ position: 'relative', zIndex: 1, margin: 0 }}>
                     MythWeaver
                   </h1>
