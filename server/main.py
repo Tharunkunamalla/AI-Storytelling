@@ -146,8 +146,13 @@ async def get_audio(text: str):
     elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
     
     if elevenlabs_api_key:
-        # Use ElevenLabs with a standard voice id (Rachel)
-        voice_id = "21m00Tcm4TlvDq8ikWAM"
+        # Some Great ElevenLabs Voice IDs:
+        # "pNInz6obpgDQGcFmaJgB" - Adam (Clear, fast-paced, American)
+        # "21m00Tcm4TlvDq8ikWAM" - Rachel (Calm, narration, American)
+        # "TxGEqnHWrfWFTfGW9XjX" - Josh (Deep, narration, American)
+        # "EXAVITQu4vr4xnSDxMaL" - Bella (Soft, fast, American)
+        
+        voice_id = "pNInz6obpgDQGcFmaJgB" # Currently set to Adam for faster pacing
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         headers = {
             "Accept": "audio/mpeg",
@@ -156,10 +161,10 @@ async def get_audio(text: str):
         }
         data = {
             "text": text,
-            "model_id": "eleven_monolingual_v1",
+            "model_id": "eleven_turbo_v2_5", # Turbo model generates audio much faster
             "voice_settings": {
                 "stability": 0.5,
-                "similarity_boost": 0.5
+                "similarity_boost": 0.75
             }
         }
         

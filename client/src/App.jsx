@@ -3,8 +3,10 @@ import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X 
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
-const CustomAudioPlayer = ({ audioUrl, onEnded, isActive }) => {
+const InteractiveAudioText = ({ text, audioUrl, onEnded, isActive }) => {
   const [playing, setPlaying] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [progress, setProgress] = useState(0);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -29,28 +31,75 @@ const CustomAudioPlayer = ({ audioUrl, onEnded, isActive }) => {
     }
   };
 
+  const handleTimeUpdate = () => {
+    if (audioRef.current && audioRef.current.duration) {
+      setProgress(audioRef.current.currentTime / audioRef.current.duration);
+    }
+  };
+
+  const toggleSpeed = () => {
+    const rates = [1, 1.25, 1.5, 2];
+    const nextRate = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
+    setPlaybackRate(nextRate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextRate;
+    }
+  };
+
+  const seekTo = (percentage) => {
+    if (audioRef.current && audioRef.current.duration) {
+      audioRef.current.currentTime = percentage * audioRef.current.duration;
+      setProgress(percentage);
+      if (!playing) {
+        audioRef.current.play().catch(e => console.log(e));
+      }
+    }
+  };
+
+  const words = text.split(" ");
+  const currentWordIndex = Math.floor(progress * words.length);
+
   return (
-    <div className="audio-player-container glass-panel">
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={onEnded}
-        className="hidden-audio"
-      />
-      <div className="audio-controls">
-        <button className="icon-btn" onClick={handlePlayPause}>
-          {playing ? <Pause size={24} /> : <Play size={24} />}
-        </button>
-        <div className={`audio-visualizer ${playing ? 'playing' : ''}`}>
-           <div className="bar"></div>
-           <div className="bar"></div>
-           <div className="bar"></div>
-           <div className="bar"></div>
-           <div className="bar"></div>
+    <div className="interactive-audio-module">
+      <p className="scene-text-overlay interactive-text">
+        {words.map((word, i) => (
+          <span 
+            key={i} 
+            onClick={() => seekTo(i / words.length)}
+            className={`word ${i <= currentWordIndex ? 'spoken' : ''}`}
+          >
+            {word}{' '}
+          </span>
+        ))}
+      </p>
+
+      <div className="audio-player-container glass-panel">
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={onEnded}
+          className="hidden-audio"
+        />
+        <div className="audio-controls">
+          <button className="icon-btn play-btn" onClick={handlePlayPause}>
+            {playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+          </button>
+          
+          <div className="audio-progress-bar" onClick={(e) => {
+             const rect = e.currentTarget.getBoundingClientRect();
+             seekTo((e.clientX - rect.left) / rect.width);
+          }}>
+             <div className="audio-progress-fill" style={{ width: `${progress * 100}%` }}></div>
+             <div className="audio-progress-thumb" style={{ left: `${progress * 100}%` }}></div>
+          </div>
+
+          <button className="speed-btn glass-panel" onClick={toggleSpeed}>
+            {playbackRate}x
+          </button>
         </div>
-        <span className="audio-status">{playing ? 'Playing narration...' : 'Paused'}</span>
       </div>
     </div>
   );
@@ -110,10 +159,8 @@ const StoryViewer = ({ storyData, onReset }) => {
                  transition={{ delay: 0.6 }}
                  className="scene-text-container glass-panel"
                >
-                 <p className="scene-text-overlay">
-                   {storyData.scenes[currentSlide].text}
-                 </p>
-                 <CustomAudioPlayer 
+                 <InteractiveAudioText 
+                    text={storyData.scenes[currentSlide].text}
                     audioUrl={storyData.scenes[currentSlide].cachedAudioUrl}
                     isActive={true}
                     onEnded={nextSlide}
@@ -248,7 +295,7 @@ function App() {
               >
                 <div className="phase-badge glass-panel">
                   <Sparkles className="icon" size={24} color="#ec4848ff" />
-                  <span>Powered by AI</span>
+                  <span style={{color: "#cf7171ff"}}>Powered by AI</span>
                 </div>
                 <h1 className="title gradient-text">
                   MythWeaver
