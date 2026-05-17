@@ -110,6 +110,7 @@ const StoryViewer = ({ storyData, onReset }) => {
   const [isFinished, setIsFinished] = useState(false);
   const [countdown, setCountdown] = useState(10);
   const [timerPaused, setTimerPaused] = useState(false);
+  const [direction, setDirection] = useState(1);
 
   useEffect(() => {
     let timer;
@@ -123,6 +124,7 @@ const StoryViewer = ({ storyData, onReset }) => {
 
   const nextSlide = () => {
     if (currentSlide < storyData.scenes.length - 1) {
+      setDirection(1);
       setCurrentSlide(prev => prev + 1);
     } else {
       setIsFinished(true);
@@ -131,6 +133,7 @@ const StoryViewer = ({ storyData, onReset }) => {
 
   const prevSlide = () => {
     if (currentSlide > 0) {
+      setDirection(-1);
       setCurrentSlide(prev => prev - 1);
     }
   };
@@ -145,9 +148,9 @@ const StoryViewer = ({ storyData, onReset }) => {
        <AnimatePresence mode="wait">
           <motion.div 
             key={currentSlide}
-            initial={{ opacity: 0, x: 100, scale: 1.05 }}
+            initial={{ opacity: 0, x: direction * 100, scale: 1.05 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -100, filter: 'blur(10px)' }}
+            exit={{ opacity: 0, x: direction * -100, filter: 'blur(10px)' }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
             className="scene-slide"
           >
