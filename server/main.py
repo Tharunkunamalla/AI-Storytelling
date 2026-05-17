@@ -93,14 +93,15 @@ async def get_image(prompt: str):
             hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
             if hf_api_key:
                 print("Attempting Hugging Face API generation...")
-                hf_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-                headers = {"Authorization": f"Bearer {hf_api_key}"}
                 try:
-                    resp = await client.post(hf_url, headers=headers, json={"inputs": prompt}, timeout=60.0)
-                    if resp.status_code == 200:
-                        return Response(content=resp.content, media_type="image/jpeg")
-                    else:
-                        print(f"Hugging Face API failed with status {resp.status_code}: {resp.text}")
+                    from huggingface_hub import AsyncInferenceClient
+                    import io
+                    # Use a fast and reliable model like FLUX.1-schnell
+                    hf_client = AsyncInferenceClient(token=hf_api_key)
+                    image = await hf_client.text_to_image(prompt, model="black-forest-labs/FLUX.1-schnell")
+                    buf = io.BytesIO()
+                    image.save(buf, format="JPEG")
+                    return Response(content=buf.getvalue(), media_type="image/jpeg")
                 except Exception as e:
                     print(f"Hugging Face API exception: {e}")
 
@@ -108,8 +109,8 @@ async def get_image(prompt: str):
             last_error = None
             for attempt in range(3):
                 seed = random.randint(1, 100000)
-                # Appending &model=flux forces it to use the stable FLUX model instead of their default broken turbo model
-                url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&seed={seed}&model=flux"
+                # Removed &model=flux as it is currently broken and causes extreme rate limiting
+                url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&seed={seed}"
                 try:
                     resp = await client.get(url, timeout=30.0, follow_redirects=True)
                     if resp.status_code == 200:

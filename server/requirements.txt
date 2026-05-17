@@ -5,3 +5,5 @@ openai
 motor
 pydantic
 loguru
+huggingface_hub
+Pillow
