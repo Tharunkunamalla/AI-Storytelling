@@ -112,7 +112,7 @@ const StoryViewer = ({ storyData, onReset }) => {
   const [timerPaused, setTimerPaused] = useState(false);
   const [direction, setDirection] = useState(1);
   const [bgMusicMuted, setBgMusicMuted] = useState(false);
-  const [bgVolume, setBgVolume] = useState(0.15);
+  const [bgVolume, setBgVolume] = useState(1.00);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const bgMusicRef = useRef(null);
