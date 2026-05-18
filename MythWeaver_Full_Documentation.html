@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MythWeaver - Full Project Architecture & Technical Specification</title>
+    <style>
+        :root {
+            --bg-color: #0d050e;
+            --text-color: #f3e8ff;
+            --card-bg: #1b0a1d;
+            --accent: #e11d48;
+            --accent-glow: rgba(225, 29, 72, 0.4);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 50px 60px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px var(--accent-glow);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            color: #f43f5e;
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #fb7185;
+            font-size: 1.3rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        p, li {
+            font-size: 1.05rem;
+            color: #cbd5e1;
+            margin-bottom: 15px;
+        }
+
+        ul {
+            margin-bottom: 25px;
+            padding-left: 25px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            color: #fda4af;
+        }
+
+        pre {
+            background: #09030a;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            color: #38bdf8;
+            line-height: 1.4;
+        }
+
+        .floating-btn {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px var(--accent-glow);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .floating-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(225, 29, 72, 0.6);
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                color: black;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                border: none;
+                background: white;
+                padding: 0;
+                max-width: 100%;
+            }
+            h1, h2, h3 {
+                color: black;
+                page-break-after: avoid;
+            }
+            p, li, code, pre {
+                color: #333;
+            }
+            pre {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+            }
+            .floating-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="floating-btn" onclick="window.print()">📥 Save as PDF</button>
+
+    <div class="container">
+        <h1>🌌 MythWeaver: Full Project Architecture & Technical Specification</h1>
+        
+        <p>MythWeaver is a premium, cinematic AI storytelling platform built with a <strong>React (Vite) + Framer Motion</strong> frontend and a <strong>FastAPI (Python)</strong> backend. It transforms simple user prompts into rich, multi-part audio-visual narratives complete with AI-generated background art, synchronized voice narration, and exportable PDF manuscripts.</p>
+
+        <h2>🏗️ System Architecture Overview</h2>
+        <pre>
+┌────────────────────────────────────────────────────────┐
+│                 Client Browser (React)                 │
+│                                                        │
+│  ┌─────────────────┐ ┌───────────────┐ ┌────────────┐  │
+│  │ Cinematic View  │ │  Audio Sync   │ │ jsPDF Gen  │  │
+│  └────────┬────────┘ └───────┬───────┘ └────────────┘  │
+└───────────┼──────────────────┼─────────────────────────┘
+            │ POST /generate   │ GET /audio & /image
+            ▼                  ▼
+┌────────────────────────────────────────────────────────┐
+│                 FastAPI Backend Server                 │
+│                                                        │
+│  ┌─────────────────┐ ┌───────────────┐ ┌────────────┐  │
+│  │   LLM Router    │ │ Image Engine  │ │ TTS Engine │  │
+│  └────────┬────────┘ └───────┬───────┘ └─────┬──────┘  │
+└───────────┼──────────────────┼───────────────┼─────────┘
+            │                  │               │
+            ▼                  ▼               ▼
+     ┌─────────────┐    ┌─────────────┐ ┌──────────────┐
+     │ OpenAI/Groq │    │ HuggingFace │ │ ElevenLabs / │
+     │ LLM API     │    │ SDXL/Mirrors│ │ Google TTS   │
+     └─────────────┘    └─────────────┘ └──────────────┘
+        </pre>
+
+        <h2>🛠️ Core Subsystem Mechanics</h2>
+
+        <h3>1. Dynamic PDF Generation & Watermarking (<code>jsPDF</code>)</h3>
+        <p>Users can download their generated stories as beautifully formatted, professional PDF manuscripts directly from the browser.</p>
+        <ul>
+            <li><strong>Client-Side Generation</strong>: When the user clicks the Download button, the app dynamically imports <code>jspdf</code>. This ensures heavy PDF libraries don't slow down the initial website load time.</li>
+            <li><strong>Canvas Watermarking</strong>: The app loads the <code>logo.png</code> onto a hidden HTML5 <code>&lt;canvas&gt;</code> to extract its base64 data. It then applies a semi-transparent graphics state (<code>opacity: 0.1</code>) to imprint a professional background watermark and "MythWeaver" seal onto the center of every page.</li>
+            <li><strong>Smart Pagination</strong>: Using <code>doc.splitTextToSize()</code>, the app calculates the exact word wrapping for the user's screen width and automatically generates new watermarked pages whenever the story text exceeds the vertical page boundary.</li>
+        </ul>
+
+        <h3>2. Interactive Audio Syncing & Narration (<code>InteractiveAudioText</code>)</h3>
+        <p>The narration system doesn't just play audio—it actively synchronizes the spoken voice with the text on screen.</p>
+        <ul>
+            <li><strong>Dual TTS Engine</strong>: The backend attempts to generate studio-quality narration using <strong>ElevenLabs</strong> (Adam voice, Turbo model). If ElevenLabs runs out of character quota, the backend instantly falls back to <strong>Google TTS (<code>gTTS</code>)</strong> so the story never stays silent.</li>
+            <li><strong>Real-Time Word Highlighting</strong>: As the <code>&lt;audio&gt;</code> element plays, the <code>onTimeUpdate</code> event listener tracks the exact playback progress (<code>currentTime / duration</code>). The component splits the scene paragraph into an array of words and calculates the <code>currentWordIndex</code>. Words up to this index dynamically receive the <code>.spoken</code> CSS class, illuminating them in real-time.</li>
+            <li><strong>Interactive Seeking</strong>: Clicking on any word calculates its percentage position within the paragraph (<code>index / totalWords</code>) and updates <code>audioRef.current.currentTime</code>, allowing users to jump directly to specific parts of the narration.</li>
+        </ul>
+
+        <h3>3. AI Image Generation & The 5-Tier Redundancy Chain</h3>
+        <p>To ensure users are always greeted with stunning visual backdrops, the backend features a highly advanced, rate-limit-resistant image generation pipeline:</p>
+        <ol>
+            <li><strong>Hugging Face Inference (Tier 1)</strong>: Uses official synchronous <code>InferenceClient</code> calls inside <code>asyncio.to_thread</code> to fetch premium Stable Diffusion XL art without blocking the server loop.</li>
+            <li><strong>Pollinations CDN Mirrors (Tier 2)</strong>: Cycles through multiple hostnames (<code>image.pollinations.ai</code>, <code>pollinations.ai/p</code>) and diverse model clusters (<code>flux</code>, <code>turbo</code>, <code>flux-realism</code>, <code>any-dark</code>) with a built-in 5-second buffer delay to bypass strict IP rate limits.</li>
+            <li><strong>Airforce AI Proxy (Tier 3)</strong>: Acts as a free backup proxy for high-quality 16:9 AI imagery.</li>
+            <li><strong>Dicebear Bottts (Tier 4)</strong>: Fallback avatar generator if public AI models are overloaded.</li>
+            <li><strong>DummyImage CDN (Tier 5)</strong>: Absolute final fallback ensuring a guaranteed <code>200 OK</code> image placeholder to prevent frontend rendering crashes.</li>
+        </ol>
+        <p><strong>Strict Content-Type Validation</strong>: Every API response is strictly filtered (<code>"image" in resp.headers['content-type']</code>). If a service returns an HTML Cloudflare challenge or a JSON error string, the backend instantly rejects it and moves to the next working tier.</p>
+
+        <h3>4. Cinematic Animations & Transitions (<code>Framer Motion</code>)</h3>
+        <p>The entire user interface is designed to feel alive, premium, and deeply immersive.</p>
+        <ul>
+            <li><strong>AnimatePresence</strong>: Handles smooth mounting and unmounting of screens. When a story generates, the home screen gracefully fades out while the cinematic story viewer slides in.</li>
+            <li><strong>Slide Transitions</strong>: Switching between story scenes triggers complex Framer Motion choreography (<code>x: direction * 100</code>, <code>scale: 1.05</code>, <code>filter: blur(10px)</code>), creating an elegant, dramatic cross-fade effect.</li>
+            <li><strong>Glassmorphism & Micro-Animations</strong>: Buttons and panels utilize translucent backgrounds (<code>rgba(255,255,255,0.03)</code>), backdrop blurs, glowing hover states, and smooth scaling effects.</li>
+        </ul>
+
+        <h2>🏆 Summary of Engineering Solutions Implemented</h2>
+        <ol>
+            <li><strong>Global Uvicorn Execution Fix (<code>server/main.py</code>)</strong>: Injected dynamic <code>sys.path</code> resolution at the very top of the backend entry point. This allows Uvicorn to automatically discover and load virtual environment dependencies (<code>openai</code>, <code>fastapi</code>, etc.) even if executed globally without activating <code>venv</code>.</li>
+            <li><strong>Eliminated Python 3.12 Async Generator Crashes</strong>: Replaced the buggy <code>AsyncInferenceClient</code> (which threw <code>StopIteration</code> coroutine errors) with the highly stable, synchronous <code>InferenceClient</code> running inside <code>asyncio.to_thread</code>.</li>
+            <li><strong>Bypassed CDN Rate Limits & Broken Images</strong>: Instituted strict <code>Content-Type</code> header verification to prevent Cloudflare HTML challenge pages from rendering as black/broken boxes on the frontend. Added a 5-second semaphore delay and multi-mirror CDN cycling to prevent Pollinations from rejecting back-to-back scene requests.</li>
+            <li><strong>Perfected UI Geometry (<code>client/src/App.css</code>)</strong>: Resolved a Flexbox centering conflict on the home screen by replacing <code>margin-top</code> with <code>transform: translateY(-35px)</code> on the Phase Badge, achieving the exact visual lift and premium spacing required.</li>
+        </ol>
+    </div>
+
+</body>
+</html>
