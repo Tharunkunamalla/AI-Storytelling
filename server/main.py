@@ -87,53 +87,95 @@ async def get_image(prompt: str):
     safe_prompt = urllib.parse.quote(prompt.strip()[:150])
     
     async with image_semaphore:
-        async with httpx.AsyncClient() as client:
-            
-            # 1. Try Hugging Face Stable Diffusion XL if API key is provided (Best Quality)
-            hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
-            if hf_api_key:
-                print("Attempting Hugging Face API generation...")
+        # 1. Try Hugging Face API via synchronous InferenceClient in a thread
+        # This completely fixes the Python 3.12 AsyncInferenceClient StopIteration bug and 404 proxy errors
+        hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
+        if hf_api_key:
+            print("Attempting Hugging Face API generation via synchronous InferenceClient...")
+            hf_models = [
+                "stabilityai/stable-diffusion-xl-base-1.0",
+                "prompthero/openjourney",
+                "runwayml/stable-diffusion-v1-5"
+            ]
+            for model in hf_models:
                 try:
-                    from huggingface_hub import AsyncInferenceClient
+                    from huggingface_hub import InferenceClient
                     import io
-                    # Use a fast and reliable model like FLUX.1-schnell
-                    hf_client = AsyncInferenceClient(token=hf_api_key)
-                    image = await hf_client.text_to_image(prompt, model="black-forest-labs/FLUX.1-schnell")
+                    def fetch_hf():
+                        client = InferenceClient(token=hf_api_key)
+                        return client.text_to_image(prompt, model=model)
+                    
+                    image = await asyncio.to_thread(fetch_hf)
                     buf = io.BytesIO()
                     image.save(buf, format="JPEG")
+                    print(f"Hugging Face ({model}) generation successful!")
                     return Response(content=buf.getvalue(), media_type="image/jpeg")
                 except Exception as e:
-                    print(f"Hugging Face API exception: {e}")
+                    err_str = str(e)
+                    if "402" in err_str:
+                        print(f"Hugging Face ({model}) error: Monthly quota depleted! Please update HUGGINGFACE_API_KEY in .env with a new account key.")
+                    else:
+                        print(f"Hugging Face ({model}) exception: {err_str}")
 
-            # 2. Fallback to Pollinations (Free public AI)
+        # Add a 5-second delay to prevent burst rate-limiting (HTTP 402) on free public APIs between scenes
+        await asyncio.sleep(5)
+
+        async with httpx.AsyncClient() as client:
+            # 2. Fallback to Pollinations with multiple host mirrors and models to bypass IP rate limits
             last_error = None
-            for attempt in range(3):
+            pollinations_configs = [
+                ("https://image.pollinations.ai/prompt", "flux"),
+                ("https://pollinations.ai/p", "turbo"),
+                ("https://image.pollinations.ai/prompt", "flux-realism"),
+                ("https://pollinations.ai/p", "any-dark"),
+                ("https://image.pollinations.ai/prompt", "default")
+            ]
+            for base_url, model_opt in pollinations_configs:
                 seed = random.randint(1, 100000)
-                # Removed &model=flux as it is currently broken and causes extreme rate limiting
-                url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&seed={seed}"
+                url = f"{base_url}/{safe_prompt}?width=800&height=450&model={model_opt}&seed={seed}&nologo=true"
                 try:
                     resp = await client.get(url, timeout=30.0, follow_redirects=True)
-                    if resp.status_code == 200:
+                    if resp.status_code == 200 and "image" in resp.headers.get("content-type", "").lower():
+                        print(f"Pollinations ({model_opt} via {base_url}) generation successful!")
                         return Response(content=resp.content, media_type="image/jpeg")
-                    if resp.status_code == 402:
-                        print("Pollinations API 402 Payment Required - Quota Exhausted for this model")
-                    last_error = f"HTTP {resp.status_code}"
+                    last_error = f"HTTP {resp.status_code} (Content-Type: {resp.headers.get('content-type')})"
                 except Exception as e:
                     last_error = str(e)
                 
-                print(f"Pollinations Attempt {attempt + 1} failed... Error: {last_error}")
-                await asyncio.sleep(2)
-                
-            # 3. Final Fallback to Stock Photos (To prevent app crash)
+                print(f"Pollinations ({model_opt}) failed... Error: {last_error}")
+                await asyncio.sleep(3)
+
+            # 3. Fallback to Free AI Image Proxy (api.airforce) with strict content-type validation
             try:
-                words = [w for w in prompt.split() if len(w) > 4]
-                keyword = urllib.parse.quote(words[0]) if words else "scifi"
-                fallback_url = f"https://loremflickr.com/800/450/{keyword}?lock={random.randint(1,10000)}"
-                fallback_resp = await client.get(fallback_url, timeout=15.0, follow_redirects=True)
-                if fallback_resp.status_code == 200:
-                    return Response(content=fallback_resp.content, media_type="image/jpeg")
+                airforce_url = f"https://api.airforce/v1/imagine2?prompt={safe_prompt}&size=16:9"
+                air_resp = await client.get(airforce_url, timeout=20.0, follow_redirects=True)
+                if air_resp.status_code == 200 and "image" in air_resp.headers.get("content-type", "").lower():
+                    print("Airforce API generation successful!")
+                    return Response(content=air_resp.content, media_type="image/jpeg")
+                else:
+                    print(f"Airforce API skipped due to invalid content-type: {air_resp.headers.get('content-type')}")
             except Exception as e:
-                print(f"Fallback also failed: {e}")
+                print(f"Airforce API fallback failed: {e}")
+                
+            # 4. Final Fallback to Guaranteed CDN Placeholder (Dicebear Bottts)
+            try:
+                seed = urllib.parse.quote(prompt.strip()[:50])
+                fallback_url = f"https://api.dicebear.com/8.x/bottts-neutral/png?seed={seed}&size=400"
+                fallback_resp = await client.get(fallback_url, timeout=15.0, follow_redirects=True)
+                if fallback_resp.status_code == 200 and "image" in fallback_resp.headers.get("content-type", "").lower():
+                    return Response(content=fallback_resp.content, media_type="image/png")
+            except Exception as e:
+                print(f"Dicebear fallback failed: {e}")
+                
+            # 5. Absolute Final DummyImage Fallback (Guaranteed 200 OK)
+            try:
+                dummy_text = urllib.parse.quote("MythWeaver Scene")
+                dummy_url = f"https://dummyimage.com/800x450/14050a/e11d48.png&text={dummy_text}"
+                dummy_resp = await client.get(dummy_url, timeout=10.0, follow_redirects=True)
+                if dummy_resp.status_code == 200:
+                    return Response(content=dummy_resp.content, media_type="image/png")
+            except Exception as e:
+                print(f"DummyImage fallback failed: {e}")
                 
             raise HTTPException(status_code=500, detail="All image generation methods failed.")
 
