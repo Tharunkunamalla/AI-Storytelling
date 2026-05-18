@@ -16,6 +16,42 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 
 ---
 
+## 📸 Visual Showcase & Feature Walkthrough
+
+### 1. Landing Page & Prompt Input
+![Prompt Input Screen](client/src/assets/project-images/p.png)
+> **The Gateway to MythWeaver**: An elegant, glassmorphism-themed landing interface where users input their creative story concepts. Features a shimmering prompt textarea, glowing crimson accent buttons, and a curated dark-mode aesthetic designed for maximum immersion.
+
+### 2. Parallel Preloading & Asset Generation
+![Story Generation Loading](client/src/assets/project-images/p1.png)
+> **High-Performance Orchestration**: Showcases the multi-tiered preloading sequence. While the LLM structures the narrative scenes, the FastAPI backend simultaneously dispatches parallel worker threads to fetch 16:9 AI background art, ElevenLabs TTS voice audio, and Suno/CDN background music before the story begins.
+
+### 3. Immersive Cinematic Story Viewer
+![Cinematic Story Viewer](client/src/assets/project-images/p2.png)
+> **The Core Storytelling Experience**: The primary audio-visual viewing interface. Seamlessly merges a stunning AI-generated background backdrop, bold typography title overlays, and a clean, distraction-free layout.
+
+### 4. Expanding BGM Volume Popover Pill
+![Volume Popover Pill](client/src/assets/project-images/music-adj.png)
+> **Precision Audio Control**: Demonstrates the premium Framer Motion expanding popover pill at the top right. Clicking the speaker icon triggers a smooth spring animation revealing a horizontal range slider and percentage label, allowing users to dial in the perfect background music mix.
+
+### 5. Interactive Word Highlighting & Seeking
+![Interactive Audio Text](client/src/assets/project-images/hv-eff.png)
+> **Real-Time Audio-Visual Synergy**: Highlights the `InteractiveAudioText` component in action. Spoken words illuminate dynamically (`.spoken`) in perfect synchronization with the TTS audio track. Hovering over words reveals a glowing crimson text-shadow and enables instant click-to-seek narration jumping.
+
+### 6. Custom Audio Player & Speed Controls
+![Playback Speed Adjustment](client/src/assets/project-images/speed.png)
+> **Granular Playback Management**: Displays the custom audio player bar featuring interactive playback speed adjustment (`1x`, `1.25x`, `1.5x`, `2x`), play/pause toggles, and a draggable progress bar kept safely above the bottom navigation controls.
+
+### 7. Dynamic Watermarked PDF Export
+![PDF Export Manuscript](client/src/assets/project-images/pdf.png)
+> **Professional Manuscript Generation**: Illustrates the client-side generated PDF manuscript (`jsPDF`). Features custom HTML5 canvas watermarking (`opacity: 0.1`) imprinted with the official MythWeaver seal, elegant typography, and smart multi-page word wrapping.
+
+### 8. Cinematic "The End" Finale Modal
+![The End Modal Overlay](client/src/assets/project-images/end.png)
+> **A Dramatic Conclusion**: The final overlay screen that appears when a story concludes. Features a dramatic backdrop blur (`backdrop-filter: blur(10px)`), vibrant gradient typography, and an automated countdown timer before smoothly resetting the platform for a new story.
+
+---
+
 ## tech Stack
 
 * **Frontend**: React (Vite), Framer Motion (Choreography & Layout), Lucide React (Icons), Vanilla CSS (Glassmorphism & Rich Aesthetics).
