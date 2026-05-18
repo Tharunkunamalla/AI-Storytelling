@@ -114,6 +114,7 @@ const StoryViewer = ({ storyData, onReset }) => {
   const [bgMusicMuted, setBgMusicMuted] = useState(false);
   const [bgVolume, setBgVolume] = useState(0.15);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const bgMusicRef = useRef(null);
   const volumePillRef = useRef(null);
 
@@ -160,8 +161,11 @@ const StoryViewer = ({ storyData, onReset }) => {
   };
 
   const downloadStory = async () => {
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
     
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -241,6 +245,9 @@ const StoryViewer = ({ storyData, onReset }) => {
     });
 
     doc.save(`${storyData.title.replace(/\s+/g, '_')}.pdf`);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -360,11 +367,12 @@ const StoryViewer = ({ storyData, onReset }) => {
                <motion.button 
                  className="top-control-btn glass-panel" 
                  onClick={downloadStory} 
-                 title="Download Story"
-                 whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
-                 whileTap={{ scale: 0.95 }}
+                 disabled={isDownloading}
+                 title={isDownloading ? "Generating PDF..." : "Download Story"}
+                 whileHover={{ scale: isDownloading ? 1 : 1.1, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
+                 whileTap={{ scale: isDownloading ? 1 : 0.95 }}
                >
-                 <Download size={24} />
+                 {isDownloading ? <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={24} />}
                </motion.button>
                <motion.button 
                  className="top-control-btn close-btn glass-panel" 
