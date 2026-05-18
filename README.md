@@ -1,25 +1,26 @@
-# 🌌 MythWeaver: Cinematic AI Storytelling Platform
+# MythWeaver: Cinematic AI Storytelling Platform
+![Prompt Input Screen](client/src/assets/project-images/p.png)
 
 MythWeaver is a premium, full-stack AI storytelling application built with **React (Vite) + Framer Motion** on the frontend and **FastAPI (Python)** on the backend. It transforms simple user prompts into rich, multi-part audio-visual narratives complete with AI-generated background art, synchronized voice narration, dynamic background music, and exportable PDF manuscripts.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-* **📖 AI Story Generation**: Uses OpenAI / Groq LLMs to craft structured, multi-scene narratives with tailored visual and audio prompts.
-* **🎨 AI Image Generation (5-Tier Redundancy)**: Generates stunning 16:9 cinematic backdrops utilizing Hugging Face Stable Diffusion XL (`asyncio.to_thread`), multi-mirror Pollinations CDN rotation, Airforce AI proxy, Dicebear, and DummyImage fallbacks.
-* **🎧 Synchronized Voice Narration**: Features premium ElevenLabs TTS (Turbo model, Adam voice) with real-time word highlighting (`InteractiveAudioText`) and seamless fallback to Google TTS (`gTTS`).
-* **🎼 AI Background Music (Suno API & Curated CDNs)**: Generates dynamic AI background music via Suno API (`SUNO_API_KEY`) or serves curated, high-quality royalty-free cinematic BGM tracks matching the prompt's genre keywords (`cyberpunk`, `dark`, `peaceful`, `magic`, etc.).
-* **🎛️ Right-Side Expanding Volume Pill**: A premium glassmorphism popover pill at the top right that expands smoothly on click to reveal a volume slider (`min="0" max="1" step="0.01"`) and percentage label, defaulting to a perfectly mixed `15%` background volume.
-* **📥 Dynamic PDF Export (`jsPDF`)**: Client-side generated PDF manuscripts complete with custom canvas watermarking and smart pagination.
-* **✨ Flawless Cinematic Animations**: Built with Framer Motion `AnimatePresence`. The top controls, bottom navigation bar, and scene images are fully unified in the DOM lifecycle, ensuring pixel-perfect transition synchronization across all story slides.
+* **AI Story Generation**: Uses OpenAI / Groq LLMs to craft structured, multi-scene narratives with tailored visual and audio prompts.<br>
+* **AI Image Generation (5-Tier Redundancy)**: Generates stunning 16:9 cinematic backdrops utilizing Hugging Face Stable Diffusion XL (`asyncio.to_thread`), multi-mirror Pollinations CDN rotation, Airforce AI proxy, Dicebear, and DummyImage fallbacks.<br>
+* **Synchronized Voice Narration**: Features premium ElevenLabs TTS (Turbo model, Adam voice) with real-time word highlighting (`InteractiveAudioText`) and seamless fallback to Google TTS (`gTTS`).<br>
+* **AI Background Music (Suno API & Curated CDNs)**: Generates dynamic AI background music via Suno API (`SUNO_API_KEY`) or serves curated, high-quality royalty-free cinematic BGM tracks matching the prompt's genre keywords (`cyberpunk`, `dark`, `peaceful`, `magic`, etc.).<br>
+* **Right-Side Expanding Volume Pill**: A premium glassmorphism popover pill at the top right that expands smoothly on click to reveal a volume slider (`min="0" max="1" step="0.01"`) and percentage label, defaulting to a perfectly mixed `15%` background volume.<br>
+* **Dynamic PDF Export (`jsPDF`)**: Client-side generated PDF manuscripts complete with custom canvas watermarking and smart pagination.<br>
+* **Flawless Cinematic Animations**: Built with Framer Motion `AnimatePresence`. The top controls, bottom navigation bar, and scene images are fully unified in the DOM lifecycle, ensuring pixel-perfect transition synchronization across all story slides.
 
 ---
 
 ## 📸 Visual Showcase & Feature Walkthrough
 
 ### 1. Landing Page & Prompt Input
-![Prompt Input Screen](client/src/assets/project-images/p.png)
+![Prompt Input Screen](client/src/assets/project-images/main.png)
 > **The Gateway to MythWeaver**: An elegant, glassmorphism-themed landing interface where users input their creative story concepts. Features a shimmering prompt textarea, glowing crimson accent buttons, and a curated dark-mode aesthetic designed for maximum immersion.
 
 ### 2. Parallel Preloading & Asset Generation
