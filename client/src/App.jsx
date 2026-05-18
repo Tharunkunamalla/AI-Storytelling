@@ -290,115 +290,109 @@ const StoryViewer = ({ storyData, onReset }) => {
                  />
                </motion.div>
              </div>
+
+             <div className="top-right-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+               <motion.div 
+                 ref={volumePillRef}
+                 className="top-control-pill glass-panel"
+                 animate={{ width: showVolumeSlider ? 180 : 48 }}
+                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                 style={{ display: 'flex', alignItems: 'center', background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', height: '48px', overflow: 'hidden', boxSizing: 'border-box', padding: showVolumeSlider ? '0 16px 0 4px' : '0 4px' }}
+               >
+                 <motion.button 
+                   className="icon-btn tooltip-btn" 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if (!showVolumeSlider) {
+                       setShowVolumeSlider(true);
+                     } else {
+                       setBgMusicMuted(!bgMusicMuted);
+                     }
+                   }} 
+                   title={showVolumeSlider ? (bgMusicMuted ? "Unmute BGM" : "Mute BGM") : "Adjust Background Music"} 
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.9 }}
+                   style={{ width: '40px', height: '40px', minWidth: '40px', background: 'transparent', border: 'none', padding: 0 }}
+                 >
+                   {bgMusicMuted || bgVolume === 0 ? <VolumeX size={22} color="#cbd5e1" /> : <Volume2 size={22} color="#e11d48" />}
+                 </motion.button>
+                 <AnimatePresence>
+                   {showVolumeSlider && (
+                     <motion.div 
+                       className="volume-slider-container"
+                       initial={{ opacity: 0, x: -10 }}
+                       animate={{ opacity: 1, x: 0 }}
+                       exit={{ opacity: 0, x: -10 }}
+                       transition={{ duration: 0.2, delay: showVolumeSlider ? 0.15 : 0 }}
+                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}
+                       onClick={(e) => e.stopPropagation()}
+                     >
+                       <input 
+                         type="range" 
+                         min="0" 
+                         max="1" 
+                         step="0.01" 
+                         value={bgVolume} 
+                         onChange={(e) => {
+                           setBgVolume(parseFloat(e.target.value));
+                           if (bgMusicMuted && parseFloat(e.target.value) > 0) setBgMusicMuted(false);
+                         }}
+                         className="volume-slider"
+                         title="Adjust Volume"
+                         style={{ width: '75px', margin: 0 }}
+                       />
+                       <span 
+                         className="volume-label" 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setShowVolumeSlider(false);
+                         }} 
+                         style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}
+                         title="Click to close"
+                       >
+                         {bgMusicMuted ? "0%" : `${Math.round(bgVolume * 100)}%`}
+                       </span>
+                     </motion.div>
+                   )}
+                 </AnimatePresence>
+               </motion.div>
+
+               <motion.button 
+                 className="top-control-btn glass-panel" 
+                 onClick={downloadStory} 
+                 title="Download Story"
+                 whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
+                 whileTap={{ scale: 0.95 }}
+               >
+                 <Download size={24} />
+               </motion.button>
+               <motion.button 
+                 className="top-control-btn close-btn glass-panel" 
+                 onClick={onReset} 
+                 title="Close Story"
+                 whileHover={{ scale: 1.1, rotate: 90, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
+                 whileTap={{ scale: 0.95 }}
+               >
+                 <X size={24} />
+               </motion.button>
+             </div>
+
+             <div className="story-nav">
+                <motion.button className="nav-btn glass-panel" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={prevSlide} disabled={currentSlide === 0}>
+                   <ChevronLeft size={32} />
+                </motion.button>
+                <div className="nav-indicators glass-panel">
+                   {storyData.scenes.map((_, i) => (
+                      <div key={i} className={`indicator ${i === currentSlide ? 'active' : ''}`} />
+                   ))}
+                </div>
+                <motion.button className="nav-btn glass-panel" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={nextSlide} disabled={currentSlide === storyData.scenes.length - 1}>
+                   <ChevronRight size={32} />
+                </motion.button>
+             </div>
           </motion.div>
        </AnimatePresence>
        
-       <div className="story-nav">
-          <button className="nav-btn glass-panel" onClick={prevSlide} disabled={currentSlide === 0}>
-             <ChevronLeft size={32} />
-          </button>
-          <div className="nav-indicators glass-panel">
-             {storyData.scenes.map((_, i) => (
-                <div key={i} className={`indicator ${i === currentSlide ? 'active' : ''}`} />
-             ))}
-          </div>
-          <button className="nav-btn glass-panel" onClick={nextSlide} disabled={currentSlide === storyData.scenes.length - 1}>
-             <ChevronRight size={32} />
-          </button>
-       </div>
-
-       <motion.div 
-         className="top-right-controls"
-         initial={{ opacity: 0, y: -25 }}
-         animate={{ opacity: 1, y: 0 }}
-         transition={{ duration: 0.8, ease: "easeInOut" }}
-         style={{ display: 'flex', alignItems: 'center', gap: '16px' }}
-       >
-         <motion.div 
-           ref={volumePillRef}
-           className="top-control-pill glass-panel"
-           animate={{ width: showVolumeSlider ? 180 : 48 }}
-           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-           style={{ display: 'flex', alignItems: 'center', background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', height: '48px', overflow: 'hidden', boxSizing: 'border-box', padding: showVolumeSlider ? '0 16px 0 4px' : '0 4px' }}
-         >
-           <motion.button 
-             className="icon-btn tooltip-btn" 
-             onClick={(e) => {
-               e.stopPropagation();
-               if (!showVolumeSlider) {
-                 setShowVolumeSlider(true);
-               } else {
-                 setBgMusicMuted(!bgMusicMuted);
-               }
-             }} 
-             title={showVolumeSlider ? (bgMusicMuted ? "Unmute BGM" : "Mute BGM") : "Adjust Background Music"} 
-             whileHover={{ scale: 1.1 }}
-             whileTap={{ scale: 0.9 }}
-             style={{ width: '40px', height: '40px', minWidth: '40px', background: 'transparent', border: 'none', padding: 0 }}
-           >
-             {bgMusicMuted || bgVolume === 0 ? <VolumeX size={22} color="#cbd5e1" /> : <Volume2 size={22} color="#e11d48" />}
-           </motion.button>
-           <AnimatePresence>
-             {showVolumeSlider && (
-               <motion.div 
-                 className="volume-slider-container"
-                 initial={{ opacity: 0, x: -10 }}
-                 animate={{ opacity: 1, x: 0 }}
-                 exit={{ opacity: 0, x: -10 }}
-                 transition={{ duration: 0.2, delay: showVolumeSlider ? 0.15 : 0 }}
-                 style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}
-                 onClick={(e) => e.stopPropagation()}
-               >
-                 <input 
-                   type="range" 
-                   min="0" 
-                   max="1" 
-                   step="0.01" 
-                   value={bgVolume} 
-                   onChange={(e) => {
-                     setBgVolume(parseFloat(e.target.value));
-                     if (bgMusicMuted && parseFloat(e.target.value) > 0) setBgMusicMuted(false);
-                   }}
-                   className="volume-slider"
-                   title="Adjust Volume"
-                   style={{ width: '75px', margin: 0 }}
-                 />
-                 <span 
-                   className="volume-label" 
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     setShowVolumeSlider(false);
-                   }} 
-                   style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}
-                   title="Click to close"
-                 >
-                   {bgMusicMuted ? "0%" : `${Math.round(bgVolume * 100)}%`}
-                 </span>
-               </motion.div>
-             )}
-           </AnimatePresence>
-         </motion.div>
-
-         <motion.button 
-           className="top-control-btn glass-panel" 
-           onClick={downloadStory} 
-           title="Download Story"
-           whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
-           whileTap={{ scale: 0.95 }}
-         >
-           <Download size={24} />
-         </motion.button>
-         <motion.button 
-           className="top-control-btn close-btn glass-panel" 
-           onClick={onReset} 
-           title="Close Story"
-           whileHover={{ scale: 1.1, rotate: 90, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
-           whileTap={{ scale: 0.95 }}
-         >
-           <X size={24} />
-         </motion.button>
-       </motion.div>
-
        <audio
          ref={bgMusicRef}
          src={storyData.bgMusicUrl}
