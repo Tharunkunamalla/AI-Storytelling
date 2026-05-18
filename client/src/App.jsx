@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X, Download } from 'lucide-react';
+import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X, Download, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
@@ -111,6 +111,27 @@ const StoryViewer = ({ storyData, onReset }) => {
   const [countdown, setCountdown] = useState(10);
   const [timerPaused, setTimerPaused] = useState(false);
   const [direction, setDirection] = useState(1);
+  const [bgMusicMuted, setBgMusicMuted] = useState(false);
+  const [bgVolume, setBgVolume] = useState(0.15);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const bgMusicRef = useRef(null);
+  const volumePillRef = useRef(null);
+
+  useEffect(() => {
+    if (bgMusicRef.current) {
+      bgMusicRef.current.volume = bgVolume;
+    }
+  }, [bgVolume, storyData]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (volumePillRef.current && !volumePillRef.current.contains(event.target)) {
+        setShowVolumeSlider(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -286,14 +307,106 @@ const StoryViewer = ({ storyData, onReset }) => {
           </button>
        </div>
 
-       <div className="top-right-controls">
-         <button className="top-control-btn glass-panel" onClick={downloadStory} title="Download Story">
+       <motion.div 
+         className="top-right-controls"
+         initial={{ opacity: 0, y: -25 }}
+         animate={{ opacity: 1, y: 0 }}
+         transition={{ duration: 0.8, ease: "easeInOut" }}
+         style={{ display: 'flex', alignItems: 'center', gap: '16px' }}
+       >
+         <motion.div 
+           ref={volumePillRef}
+           className="top-control-pill glass-panel"
+           animate={{ width: showVolumeSlider ? 180 : 48 }}
+           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+           style={{ display: 'flex', alignItems: 'center', background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', height: '48px', overflow: 'hidden', boxSizing: 'border-box', padding: showVolumeSlider ? '0 16px 0 4px' : '0 4px' }}
+         >
+           <motion.button 
+             className="icon-btn tooltip-btn" 
+             onClick={(e) => {
+               e.stopPropagation();
+               if (!showVolumeSlider) {
+                 setShowVolumeSlider(true);
+               } else {
+                 setBgMusicMuted(!bgMusicMuted);
+               }
+             }} 
+             title={showVolumeSlider ? (bgMusicMuted ? "Unmute BGM" : "Mute BGM") : "Adjust Background Music"} 
+             whileHover={{ scale: 1.1 }}
+             whileTap={{ scale: 0.9 }}
+             style={{ width: '40px', height: '40px', minWidth: '40px', background: 'transparent', border: 'none', padding: 0 }}
+           >
+             {bgMusicMuted || bgVolume === 0 ? <VolumeX size={22} color="#cbd5e1" /> : <Volume2 size={22} color="#e11d48" />}
+           </motion.button>
+           <AnimatePresence>
+             {showVolumeSlider && (
+               <motion.div 
+                 className="volume-slider-container"
+                 initial={{ opacity: 0, x: -10 }}
+                 animate={{ opacity: 1, x: 0 }}
+                 exit={{ opacity: 0, x: -10 }}
+                 transition={{ duration: 0.2, delay: showVolumeSlider ? 0.15 : 0 }}
+                 style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}
+                 onClick={(e) => e.stopPropagation()}
+               >
+                 <input 
+                   type="range" 
+                   min="0" 
+                   max="1" 
+                   step="0.01" 
+                   value={bgVolume} 
+                   onChange={(e) => {
+                     setBgVolume(parseFloat(e.target.value));
+                     if (bgMusicMuted && parseFloat(e.target.value) > 0) setBgMusicMuted(false);
+                   }}
+                   className="volume-slider"
+                   title="Adjust Volume"
+                   style={{ width: '75px', margin: 0 }}
+                 />
+                 <span 
+                   className="volume-label" 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     setShowVolumeSlider(false);
+                   }} 
+                   style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1' }}
+                   title="Click to close"
+                 >
+                   {bgMusicMuted ? "0%" : `${Math.round(bgVolume * 100)}%`}
+                 </span>
+               </motion.div>
+             )}
+           </AnimatePresence>
+         </motion.div>
+
+         <motion.button 
+           className="top-control-btn glass-panel" 
+           onClick={downloadStory} 
+           title="Download Story"
+           whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
+           whileTap={{ scale: 0.95 }}
+         >
            <Download size={24} />
-         </button>
-         <button className="top-control-btn close-btn glass-panel" onClick={onReset} title="Close Story">
+         </motion.button>
+         <motion.button 
+           className="top-control-btn close-btn glass-panel" 
+           onClick={onReset} 
+           title="Close Story"
+           whileHover={{ scale: 1.1, rotate: 90, backgroundColor: 'rgba(239, 68, 68, 0.4)' }}
+           whileTap={{ scale: 0.95 }}
+         >
            <X size={24} />
-         </button>
-       </div>
+         </motion.button>
+       </motion.div>
+
+       <audio
+         ref={bgMusicRef}
+         src={storyData.bgMusicUrl}
+         autoPlay
+         loop
+         muted={bgMusicMuted}
+         className="hidden-audio"
+       />
 
        <AnimatePresence>
          {isFinished && !timerPaused && (
@@ -397,6 +510,16 @@ function App() {
       
       await Promise.all(promises);
       
+      // Preload Background Music
+      const bgmUrl = `http://localhost:8000/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}`;
+      let cachedBgmUrl = bgmUrl;
+      try {
+        const bgmRes = await fetch(bgmUrl);
+        const bgmBlob = await bgmRes.blob();
+        cachedBgmUrl = URL.createObjectURL(bgmBlob);
+      } catch(e) {}
+      
+      data.bgMusicUrl = cachedBgmUrl;
       setStoryData(data);
       setPreloading(false);
       setPreloadProgress(0);

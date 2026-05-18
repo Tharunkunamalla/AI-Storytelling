@@ -232,6 +232,53 @@ async def get_audio(text: str):
         print(f"gTTS exception: {e}")
         raise HTTPException(status_code=500, detail="Audio generation failed")
 
+@app.get("/api/music")
+async def get_music(prompt: str):
+    safe_prompt = urllib.parse.quote(prompt.strip()[:100])
+    suno_api_key = os.getenv("SUNO_API_KEY")
+    
+    async with httpx.AsyncClient() as client:
+        if suno_api_key:
+            print("Attempting Suno API music generation...")
+            try:
+                # Example Suno API call (using common unofficial/official wrapper format)
+                suno_url = "https://api.sunoaiapi.com/api/v1/generate"
+                headers = {"Authorization": f"Bearer {suno_api_key}"}
+                payload = {"prompt": f"cinematic background music for story: {prompt}", "make_instrumental": True}
+                resp = await client.post(suno_url, json=payload, headers=headers, timeout=35.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # Extract audio url from response
+                    audio_url = data.get("audio_url") or (data.get("data", {}).get("audio_url"))
+                    if audio_url:
+                        mp3_resp = await client.get(audio_url, timeout=20.0)
+                        if mp3_resp.status_code == 200:
+                            print("Suno API music generation successful!")
+                            return Response(content=mp3_resp.content, media_type="audio/mpeg")
+            except Exception as e:
+                print(f"Suno API exception: {e}")
+                
+        # Fallback to Curated Royalty-Free Cinematic BGM Tracks based on prompt keyword matching
+        print("Falling back to curated cinematic BGM tracks...")
+        prompt_lower = prompt.lower()
+        if any(w in prompt_lower for w in ["cyberpunk", "future", "sci-fi", "robot", "space", "city"]):
+            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Volatile%20Reaction.mp3"
+        elif any(w in prompt_lower for w in ["dark", "sorcerer", "magic", "demon", "horror", "mystery"]):
+            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3"
+        elif any(w in prompt_lower for w in ["peaceful", "calm", "cloud", "dream", "forest", "wise", "love"]):
+            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3"
+        else: # Default Epic Fantasy / Medieval / Adventure
+            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"
+            
+        try:
+            bgm_resp = await client.get(bgm_url, timeout=20.0, follow_redirects=True)
+            if bgm_resp.status_code == 200:
+                return Response(content=bgm_resp.content, media_type="audio/mpeg")
+        except Exception as e:
+            print(f"Curated BGM fallback failed: {e}")
+            
+        raise HTTPException(status_code=500, detail="Music generation failed")
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
