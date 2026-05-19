@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: ./server
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      SUNO_API_KEY: ${SUNO_API_KEY:-}
+      FRONTEND_ORIGINS: http://localhost:8080
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
