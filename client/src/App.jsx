@@ -3,6 +3,8 @@ import { Sparkles, Loader2, BookOpen, ChevronRight, ChevronLeft, Play, Pause, X,
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+
 const InteractiveAudioText = ({ text, audioUrl, onEnded, isActive }) => {
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -460,7 +462,7 @@ function App() {
     
     try {
       // 1. Generate text first
-      const response = await fetch('http://localhost:8000/api/generate-story', {
+      const response = await fetch(`${API_BASE_URL}/api/generate-story`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -488,7 +490,7 @@ function App() {
       const promises = data.scenes.map(async (scene) => {
          // Preload Image
          const imgPrompt = encodeURIComponent(scene.image_prompt.replace(/[^a-zA-Z0-9 ,]/g, '').replace(/\s+/g, ' ').trim().slice(0, 150));
-         const imgUrl = `http://localhost:8000/api/image?prompt=${imgPrompt}`;
+         const imgUrl = `${API_BASE_URL}/api/image?prompt=${imgPrompt}`;
          try {
            const imgRes = await fetch(imgUrl);
            const imgBlob = await imgRes.blob();
@@ -499,7 +501,7 @@ function App() {
          updateProgress();
 
          // Preload Audio
-         const audioUrl = `http://localhost:8000/api/audio?text=${encodeURIComponent(scene.text)}`;
+         const audioUrl = `${API_BASE_URL}/api/audio?text=${encodeURIComponent(scene.text)}`;
          try {
            const audioRes = await fetch(audioUrl);
            const audioBlob = await audioRes.blob();
@@ -513,7 +515,7 @@ function App() {
       await Promise.all(promises);
       
       // Preload Background Music
-      const bgmUrl = `http://localhost:8000/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}`;
+      const bgmUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}`;
       let cachedBgmUrl = bgmUrl;
       try {
         const bgmRes = await fetch(bgmUrl);
