@@ -176,6 +176,47 @@ const StoryViewer = ({storyData, onReset}) => {
     return () => clearTimeout(timer);
   }, [isFinished, countdown, timerPaused, onReset]);
 
+  useEffect(() => {
+    if (isFinished) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          const ctx = new AudioContext();
+          const now = ctx.currentTime;
+          
+          // Primary Chime Tone
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(587.33, now); // D5
+          osc1.frequency.exponentialRampToValueAtTime(880.00, now + 0.15); // A5
+          gain1.gain.setValueAtTime(0.12, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+          osc1.connect(gain1);
+          gain1.connect(ctx.destination);
+          
+          // Harmonizing Warm Tone
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(349.23, now); // F4
+          osc2.frequency.exponentialRampToValueAtTime(523.25, now + 0.2); // C5
+          gain2.gain.setValueAtTime(0.08, now);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          
+          osc1.start(now);
+          osc1.stop(now + 1.2);
+          osc2.start(now);
+          osc2.stop(now + 0.9);
+        }
+      } catch (e) {
+        console.error("Failed to play finish sound:", e);
+      }
+    }
+  }, [isFinished]);
+
   const nextSlide = () => {
     if (currentSlide < storyData.scenes.length - 1) {
       setDirection(1);
