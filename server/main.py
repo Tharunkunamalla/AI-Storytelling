@@ -385,7 +385,7 @@ async def get_audio(text: str, story_id: str = None, scene_index: int = None):
             
     return Response(content=audio_bytes, media_type=media_type)
 
-async def _generate_music_bytes_internal(prompt: str) -> tuple[bytes, str]:
+async def _get_bgm_url(prompt: str) -> str:
     safe_prompt = urllib.parse.quote(prompt.strip()[:100])
     suno_api_key = os.getenv("SUNO_API_KEY")
     
@@ -401,10 +401,8 @@ async def _generate_music_bytes_internal(prompt: str) -> tuple[bytes, str]:
                     data = resp.json()
                     audio_url = data.get("audio_url") or (data.get("data", {}).get("audio_url"))
                     if audio_url:
-                        mp3_resp = await client.get(audio_url, timeout=20.0)
-                        if mp3_resp.status_code == 200:
-                            print("Suno API music generation successful!")
-                            return mp3_resp.content, "audio/mpeg"
+                        print("Suno API music generation successful!")
+                        return audio_url
             except Exception as e:
                 print(f"Suno API exception: {e}")
                 
@@ -413,52 +411,30 @@ async def _generate_music_bytes_internal(prompt: str) -> tuple[bytes, str]:
         prompt_lower = prompt.lower()
         # 1. Action / Sci-Fi / Cyberpunk / Battle
         if any(w in prompt_lower for w in ["cyberpunk", "future", "sci-fi", "robot", "space", "city", "laser", "spaceship", "battle", "war", "fight", "action", "soldier", "warrior", "hero", "combat"]):
-            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Volatile%20Reaction.mp3"
+            return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Volatile%20Reaction.mp3"
         # 2. Dark / Spooky / Mysterious / Magic
         elif any(w in prompt_lower for w in ["dark", "sorcerer", "magic", "demon", "horror", "mystery", "spooky", "scary", "ghost", "vampire", "witch", "monster", "evil", "shadow", "sinister", "dungeon", "creepy"]):
-            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3"
+            return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3"
         # 3. Calm / Peaceful / Romantic / Emotional-Nature
         elif any(w in prompt_lower for w in ["peaceful", "calm", "cloud", "dream", "forest", "wise", "love", "friendship", "nature", "river", "garden", "flower", "grass", "quiet", "sleep", "soft", "angel", "sunny", "sky"]):
-            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3"
+            return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3"
         # 4. Sad / Melancholy / Dramatic
         elif any(w in prompt_lower for w in ["sad", "crying", "tears", "pain", "loss", "grief", "alone", "lonely", "tragedy", "sorrow", "leaving", "forgotten", "empty"]):
-            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Leaving%20Home.mp3"
+            return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Leaving%20Home.mp3"
         # 5. Default: Epic Fantasy / Adventure
         else:
-            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"
-            
-        try:
-            bgm_resp = await client.get(bgm_url, timeout=20.0, follow_redirects=True)
-            if bgm_resp.status_code == 200:
-                return bgm_resp.content, "audio/mpeg"
-        except Exception as e:
-            print(f"Curated BGM fallback failed: {e}")
-            
-        raise HTTPException(status_code=500, detail="Music generation failed")
+            return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"
 
 @app.get("/api/music")
 async def get_music(prompt: str, story_id: str = None):
-    if gcp_mgr.storage_enabled and story_id:
-        blob_path = f"stories/{story_id}/music.mp3"
-        try:
-            blob = gcp_mgr.bucket.blob(blob_path)
-            if blob.exists():
-                print(f"Serving music from GCS cache for story {story_id}")
-                return RedirectResponse(url=blob.public_url)
-        except Exception as e:
-            print(f"Error checking GCS music cache: {e}")
-            
-    # Generate new music bytes
-    music_bytes, media_type = await _generate_music_bytes_internal(prompt)
+    # Resolve the BGM URL directly (either Suno generated URL or curated Incompetech URL)
+    bgm_url = await _get_bgm_url(prompt)
     
-    # Upload to GCP if enabled
-    if gcp_mgr.storage_enabled and story_id:
-        blob_path = f"stories/{story_id}/music.mp3"
-        public_url = gcp_mgr.upload_media(music_bytes, blob_path, media_type)
-        if public_url:
-            update_story_asset(story_id, "music", url=public_url)
-            
-    return Response(content=music_bytes, media_type=media_type)
+    # Store the resolved URL in the databases (avoids uploading 6MB files to GCS!)
+    if story_id:
+        update_story_asset(story_id, "music", url=bgm_url)
+        
+    return RedirectResponse(url=bgm_url)
 
 @app.get("/api/stories")
 def get_stories(limit: int = 12):
