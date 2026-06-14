@@ -10,7 +10,7 @@ services:
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       SUNO_API_KEY: ${SUNO_API_KEY:-}
-      FRONTEND_ORIGINS: http://localhost:8080
+      FRONTEND_ORIGINS: http://localhost:3000
     restart: unless-stopped
 
   frontend:
@@ -19,7 +19,7 @@ services:
       args:
         VITE_API_BASE_URL: http://localhost:8000
     ports:
-      - "8080:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped

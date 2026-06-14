@@ -28,18 +28,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Setup the AI Client
-# We check for GROQ_API_KEY first as a free alternative, then fallback to OpenAI
-groq_api_key = os.getenv("GROQ_API_KEY")
-if groq_api_key:
-    llm_client = AsyncOpenAI(
-        api_key=groq_api_key,
-        base_url="https://api.groq.com/openai/v1"
-    )
-    model_name = "llama-3.1-8b-instant"
-else:
-    llm_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
-    model_name = "gpt-3.5-turbo"
+# Setup the AI Client lazily so the app can start without API credentials.
+def get_llm_client():
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if groq_api_key:
+        return AsyncOpenAI(
+            api_key=groq_api_key,
+            base_url="https://api.groq.com/openai/v1",
+        ), "llama-3.1-8b-instant"
+
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if openai_api_key:
+        return AsyncOpenAI(api_key=openai_api_key), "gpt-3.5-turbo"
+
+    return None, None
 
 import json
 from typing import List
@@ -57,8 +59,12 @@ class StoryResponse(BaseModel):
 
 @app.post("/api/generate-story", response_model=StoryResponse)
 async def generate_story(req: StoryRequest):
-    if not llm_client.api_key:
-        raise HTTPException(status_code=500, detail="API key not configured. Please add GROQ_API_KEY to .env")
+    llm_client, model_name = get_llm_client()
+    if llm_client is None:
+        raise HTTPException(
+            status_code=500,
+            detail="API key not configured. Please add GROQ_API_KEY or OPENAI_API_KEY to .env",
+        )
     try:
         response = await llm_client.chat.completions.create(
             model=model_name,
