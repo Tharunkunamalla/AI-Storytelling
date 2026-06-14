@@ -411,12 +411,19 @@ async def _generate_music_bytes_internal(prompt: str) -> tuple[bytes, str]:
         # Fallback to Curated Cinematic BGM
         print("Falling back to curated cinematic BGM tracks...")
         prompt_lower = prompt.lower()
-        if any(w in prompt_lower for w in ["cyberpunk", "future", "sci-fi", "robot", "space", "city"]):
+        # 1. Action / Sci-Fi / Cyberpunk / Battle
+        if any(w in prompt_lower for w in ["cyberpunk", "future", "sci-fi", "robot", "space", "city", "laser", "spaceship", "battle", "war", "fight", "action", "soldier", "warrior", "hero", "combat"]):
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Volatile%20Reaction.mp3"
-        elif any(w in prompt_lower for w in ["dark", "sorcerer", "magic", "demon", "horror", "mystery"]):
+        # 2. Dark / Spooky / Mysterious / Magic
+        elif any(w in prompt_lower for w in ["dark", "sorcerer", "magic", "demon", "horror", "mystery", "spooky", "scary", "ghost", "vampire", "witch", "monster", "evil", "shadow", "sinister", "dungeon", "creepy"]):
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3"
-        elif any(w in prompt_lower for w in ["peaceful", "calm", "cloud", "dream", "forest", "wise", "love"]):
+        # 3. Calm / Peaceful / Romantic / Emotional-Nature
+        elif any(w in prompt_lower for w in ["peaceful", "calm", "cloud", "dream", "forest", "wise", "love", "friendship", "nature", "river", "garden", "flower", "grass", "quiet", "sleep", "soft", "angel", "sunny", "sky"]):
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3"
+        # 4. Sad / Melancholy / Dramatic
+        elif any(w in prompt_lower for w in ["sad", "crying", "tears", "pain", "loss", "grief", "alone", "lonely", "tragedy", "sorrow", "leaving", "forgotten", "empty"]):
+            bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Leaving%20Home.mp3"
+        # 5. Default: Epic Fantasy / Adventure
         else:
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"
             
