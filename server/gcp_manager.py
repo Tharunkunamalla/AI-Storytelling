@@ -10,6 +10,7 @@ class GCPManager:
         self.project_id = os.getenv("GCP_PROJECT_ID")
         self.bucket_name = os.getenv("GCS_BUCKET_NAME")
         self.credentials_json = os.getenv("GCP_CREDENTIALS_JSON")
+        self.firestore_db = os.getenv("GCP_FIRESTORE_DATABASE", "(default)")
         
         self.storage_client = None
         self.firestore_client = None
@@ -51,11 +52,11 @@ class GCPManager:
         try:
             # 3. Initialize Firestore Client
             if credentials:
-                self.firestore_client = firestore.Client(project=self.project_id, credentials=credentials)
+                self.firestore_client = firestore.Client(project=self.project_id, credentials=credentials, database=self.firestore_db)
             else:
-                self.firestore_client = firestore.Client(project=self.project_id)
+                self.firestore_client = firestore.Client(project=self.project_id, database=self.firestore_db)
             self.firestore_enabled = True
-            print("GCP Firestore initialized successfully.")
+            print(f"GCP Firestore initialized successfully. Database: {self.firestore_db}")
         except Exception as e:
             print(f"Failed to initialize GCP Firestore: {e}")
             self.firestore_enabled = False
