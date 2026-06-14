@@ -12,6 +12,7 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 - **AI Image Generation (5-Tier Redundancy)**: Generates stunning 16:9 cinematic backdrops utilizing Hugging Face Stable Diffusion XL (`asyncio.to_thread`), multi-mirror Pollinations CDN rotation, Airforce AI proxy, Dicebear, and DummyImage fallbacks.<br>
 - **Synchronized Voice Narration**: Features premium ElevenLabs TTS (Turbo model, Adam voice) with real-time word highlighting (`InteractiveAudioText`) and seamless fallback to Google TTS (`gTTS`).<br>
 - **AI Background Music (Suno API & Curated CDNs)**: Generates dynamic AI background music via Suno API (`SUNO_API_KEY`) or serves curated, high-quality royalty-free cinematic BGM tracks matching the prompt's genre keywords (`cyberpunk`, `dark`, `peaceful`, `magic`, etc.).<br>
+- **GCP Cloud Database & Storage (Firestore & GCS)**: Integrates Google Cloud Platform to permanently host generated story assets (illustrations/voice audio) in GCS buckets and store metadata in Firestore. This enables a global "Recent Stories" feed on the dashboard with direct streaming, along with a graceful zero-config fallback to ephemeral memory for local setups.<br> 
 - **Right-Side Expanding Volume Pill**: A premium glassmorphism popover pill at the top right that expands smoothly on click to reveal a volume slider (`min="0" max="1" step="0.01"`) and percentage label, defaulting to a perfectly mixed `15%` background volume.<br>
 - **Dynamic PDF Export (`jsPDF`)**: Client-side generated PDF manuscripts complete with custom canvas watermarking and smart pagination.<br>
 - **Flawless Cinematic Animations**: Built with Framer Motion `AnimatePresence`. The top controls, bottom navigation bar, and scene images are fully unified in the DOM lifecycle, ensuring pixel-perfect transition synchronization across all story slides.
@@ -70,10 +71,11 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 
 ---
 
-## tech Stack
+## Tech Stack
 
 - **Frontend**: React (Vite), Framer Motion (Choreography & Layout), Lucide React (Icons), Vanilla CSS (Glassmorphism & Rich Aesthetics).
 - **Backend**: FastAPI (Python), Uvicorn, HTTPX (Async API Client), Pillow, gTTS.
+- **Database & Storage (GCP)**: Google Cloud Storage (GCS) for media asset hosting, Google Cloud Firestore for persistent story document storage.
 - **AI APIs**: OpenAI / Groq (Text), Hugging Face / Pollinations (Images), ElevenLabs (Voice), Suno API (Music).
 
 ---
@@ -99,12 +101,18 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
    pip install -r requirements.txt
    ```
 4. Set up your Environment Variables:
-   Open `server/.env` and configure your API keys:
+   Open `server/.env` and configure your API keys and GCP settings (optional, falls back to in-memory/cache):
    ```env
    OPENAI_API_KEY=sk-your-openai-key
    HUGGINGFACE_API_KEY=hf_your_huggingface_token
    ELEVENLABS_API_KEY=xi-api-key-here
    SUNO_API_KEY=your_suno_api_key_optional
+
+   # Google Cloud Platform (GCP) Configuration
+   GCP_PROJECT_ID=your-gcp-project-id
+   GCS_BUCKET_NAME=your-gcs-bucket-name
+   GCP_CREDENTIALS_JSON={"type": "service_account", "project_id": ...}
+   GCP_FIRESTORE_DATABASE=(default)
    ```
 5. Run the server:
 
@@ -132,8 +140,6 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
    ```
 4. Open `http://localhost:5173` in your browser to experience MythWeaver!
 
----
-
 ## 🏛️ System Architecture
 
 ```
@@ -144,19 +150,29 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 │  │ Cinematic View  │ │  Audio Sync   │ │ jsPDF Gen  │  │
 │  └────────┬────────┘ └───────┬───────┘ └────────────┘  │
 └───────────┼──────────────────┼─────────────────────────┘
-            │ POST /generate   │ GET /audio, /image, /music
+            │ POST /generate   │ Direct Asset Streaming (GCS URLs)
             ▼                  ▼
 ┌────────────────────────────────────────────────────────┐
 │                 FastAPI Backend Server                 │
 │                                                        │
-│  ┌─────────────────┐ ┌───────────────┐ ┌────────────┐  │
-│  │   LLM Router    │ │ Image Engine  │ │ Audio/BGM  │  │
-│  └────────┬────────┘ └───────┬───────┘ └─────┬──────┘  │
-└───────────┼──────────────────┼───────────────┼─────────┘
-            │                  │               │
-            ▼                  ▼               ▼
-     ┌─────────────┐    ┌─────────────┐ ┌──────────────┐
-     │ OpenAI/Groq │    │ HuggingFace │ │ ElevenLabs / │
-     │ LLM API     │    │ SDXL/Mirrors│ │ Suno / gTTS  │
-     └─────────────┘    └─────────────┘ └──────────────┘
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐ │
+│  │  LLM Router  │  │ Image Engine │  │   Audio/BGM   │ │
+│  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘ │
+└─────────┼─────────────────┼──────────────────┼─────────┘
+          │                 │                  │
+          ▼                 ▼                  ▼
+   ┌─────────────┐   ┌─────────────┐    ┌──────────────┐
+   │ OpenAI/Groq │   │ HuggingFace │    │ ElevenLabs / │
+   │ LLM API     │   │ SDXL/Mirrors│    │ Suno / gTTS  │
+   └─────────────┘   └──────┬──────┘    └──────┬───────┘
+                            │                  │
+                            ▼                  ▼
+             ┌─────────────────────────────────────────┐
+             │      Google Cloud Platform (GCP)        │
+             │                                         │
+             │  ┌──────────────────┐ ┌───────────────┐  │
+             │  │  Cloud Storage   │ │   Firestore   │  │
+             │  │   (GCS Assets)   │ │  (Story DB)   │  │
+             │  └──────────────────┘ └───────────────┘  │
+             └─────────────────────────────────────────┘
 ```
