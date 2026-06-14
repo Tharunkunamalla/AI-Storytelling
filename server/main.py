@@ -61,19 +61,19 @@ def update_story_asset(story_id: str, asset_type: str, index: int = None, url: s
         except Exception as e:
             print(f"Error updating story asset in Firestore: {e}")
 
-frontend_origins = [
-    origin.strip()
-    for origin in os.getenv(
-        "FRONTEND_ORIGINS",
-        "http://localhost:5173,http://localhost:3000"
-    ).split(",")
-    if origin.strip()
-]
+# Accept FRONTEND_ORIGINS or default to allowing all origins (wildcard) for hassle-free deployments
+frontend_origins_str = os.getenv("FRONTEND_ORIGINS")
+if frontend_origins_str:
+    frontend_origins = [orig.strip() for orig in frontend_origins_str.split(",") if orig.strip()]
+    # Remove trailing slashes from origins to prevent FastAPI CORS matching failures
+    frontend_origins = [orig.rstrip("/") for orig in frontend_origins]
+else:
+    frontend_origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
-    allow_credentials=True,
+    allow_credentials=True if frontend_origins != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
