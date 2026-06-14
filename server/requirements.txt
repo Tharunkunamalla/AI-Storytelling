@@ -8,3 +8,6 @@ loguru
 huggingface_hub
 Pillow
 gTTS
+google-cloud-storage
+google-cloud-firestore
+

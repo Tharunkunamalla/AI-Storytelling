@@ -565,6 +565,72 @@ function App() {
   const [preloading, setPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
   const [error, setError] = useState("");
+  const [serverConnected, setServerConnected] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [recentStories, setRecentStories] = useState([]);
+  const [loadingStories, setLoadingStories] = useState(false);
+
+  // Poll server connection on mount
+  useEffect(() => {
+    let active = true;
+    const checkConnection = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/health`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "ok" && active) {
+            setServerConnected(true);
+            setCheckingConnection(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log("Server not ready, retrying...", e);
+      }
+      if (active) {
+        setTimeout(checkConnection, 2500);
+      }
+    };
+    checkConnection();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fetchRecentStories = async () => {
+    setLoadingStories(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/stories`);
+      if (res.ok) {
+        const data = await res.json();
+        setRecentStories(data);
+      }
+    } catch (e) {
+      console.error("Error fetching recent stories:", e);
+    } finally {
+      setLoadingStories(false);
+    }
+  };
+
+  useEffect(() => {
+    if (serverConnected) {
+      fetchRecentStories();
+    }
+  }, [serverConnected]);
+
+  const playSavedStory = (story) => {
+    const playData = {
+      title: story.title,
+      bgMusicUrl: story.bgMusicUrl,
+      scenes: story.scenes.map((s) => ({
+        text: s.text,
+        image_prompt: s.image_prompt,
+        cachedImageUrl: s.image_url || s.cachedImageUrl,
+        cachedAudioUrl: s.audio_url || s.cachedAudioUrl,
+      })),
+    };
+    setStoryData(playData);
+  };
 
   const generateStory = async (e) => {
     e.preventDefault();
@@ -600,7 +666,7 @@ function App() {
         setPreloadProgress(Math.round((loaded / totalAssets) * 100));
       };
 
-      const promises = data.scenes.map(async (scene) => {
+      const promises = data.scenes.map(async (scene, index) => {
         // Preload Image
         const imgPrompt = encodeURIComponent(
           scene.image_prompt
@@ -609,7 +675,7 @@ function App() {
             .trim()
             .slice(0, 150),
         );
-        const imgUrl = `${API_BASE_URL}/api/image?prompt=${imgPrompt}`;
+        const imgUrl = `${API_BASE_URL}/api/image?prompt=${imgPrompt}&story_id=${data.story_id}&scene_index=${index}`;
         try {
           const imgRes = await fetch(imgUrl);
           const imgBlob = await imgRes.blob();
@@ -620,7 +686,7 @@ function App() {
         updateProgress();
 
         // Preload Audio
-        const audioUrl = `${API_BASE_URL}/api/audio?text=${encodeURIComponent(scene.text)}`;
+        const audioUrl = `${API_BASE_URL}/api/audio?text=${encodeURIComponent(scene.text)}&story_id=${data.story_id}&scene_index=${index}`;
         try {
           const audioRes = await fetch(audioUrl);
           const audioBlob = await audioRes.blob();
@@ -634,7 +700,7 @@ function App() {
       await Promise.all(promises);
 
       // Preload Background Music
-      const bgmUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}`;
+      const bgmUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}&story_id=${data.story_id}`;
       let cachedBgmUrl = bgmUrl;
       try {
         const bgmRes = await fetch(bgmUrl);
@@ -647,6 +713,7 @@ function App() {
       setPreloading(false);
       setPreloadProgress(0);
       setPrompt("");
+      fetchRecentStories(); // Refresh feed
     } catch (err) {
       setError(
         err.message ||
@@ -665,13 +732,47 @@ function App() {
         <div className="orb orb-2"></div>
         <div className="orb orb-3"></div>
       </div>
-      <AnimatePresence>
-        {!storyData ? (
+      <AnimatePresence mode="wait">
+        {!serverConnected ? (
           <motion.div
+            key="connecting"
+            className="server-connecting-fullscreen"
+            initial={{opacity: 1}}
+            exit={{opacity: 0}}
+            transition={{duration: 0.5}}
+          >
+            <div className="bg-objects">
+              <div className="orb orb-1"></div>
+              <div className="orb orb-2"></div>
+            </div>
+            <motion.div
+              className="connecting-card glass-panel"
+              initial={{opacity: 0, scale: 0.9}}
+              animate={{opacity: 1, scale: 1}}
+              transition={{type: "spring", stiffness: 100, damping: 15}}
+            >
+              <div className="connecting-loader-wrapper">
+                <Loader2 className="spinner-large" size={48} color="#e11d48" />
+                <div className="loader-ring-glow"></div>
+              </div>
+              <h2 className="gradient-text connecting-title">Connecting to Server</h2>
+              <p className="connecting-desc">
+                Waking up the backend. Since the server is hosted on a free Render instance, it automatically spins down after inactivity. This cold-start can take up to a minute.
+              </p>
+              <div className="pulse-container">
+                <div className="pulse-circle"></div>
+                <span className="pulse-text">Establishing secure connection...</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : !storyData ? (
+          <motion.div
+            key="home"
             className="home-view"
-            initial={{opacity: 0}}
-            animate={{opacity: 1}}
+            initial={{opacity: 0, y: 10}}
+            animate={{opacity: 1, y: 0}}
             exit={{opacity: 0, scale: 0.95}}
+            transition={{duration: 0.5}}
           >
             <header className="header">
               <motion.div
@@ -793,6 +894,43 @@ function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Recent Stories Gallery */}
+              {recentStories.filter((s) => s.scenes && s.scenes.length > 0 && (s.scenes[0].image_url || s.scenes[0].cachedImageUrl)).length > 0 && (
+                <div className="recent-stories-section">
+                  <h3 className="section-title">
+                    <Sparkles className="icon-pink" size={20} />
+                    <span>Community Creations</span>
+                  </h3>
+                  <div className="stories-grid">
+                    {recentStories
+                      .filter((s) => s.scenes && s.scenes.length > 0 && (s.scenes[0].image_url || s.scenes[0].cachedImageUrl))
+                      .map((story) => (
+                        <motion.div
+                          key={story.story_id}
+                          className="story-card glass-panel"
+                          whileHover={{scale: 1.03, y: -4}}
+                          whileTap={{scale: 0.98}}
+                          onClick={() => playSavedStory(story)}
+                        >
+                          <div className="card-bg-container">
+                            <img
+                              src={story.scenes[0].image_url || story.scenes[0].cachedImageUrl}
+                              alt={story.title}
+                              className="card-bg-image"
+                              loading="lazy"
+                            />
+                            <div className="card-overlay"></div>
+                          </div>
+                          <div className="card-content">
+                            <h4 className="card-title">{story.title}</h4>
+                            <p className="card-prompt">"{story.prompt}"</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </main>
 
             <footer className="footer">
@@ -817,6 +955,7 @@ function App() {
           </motion.div>
         ) : (
           <StoryViewer
+            key="viewer"
             storyData={storyData}
             onReset={() => setStoryData(null)}
           />

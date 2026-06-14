@@ -1,15 +1,65 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import os
+import uuid
 # pyrefly: ignore [missing-import]
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import uvicorn
+from gcp_manager import GCPManager
 
 load_dotenv()
 
 app = FastAPI(title="AI Storytelling App API")
+
+gcp_mgr = GCPManager()
+in_memory_stories = {}
+
+def update_story_asset(story_id: str, asset_type: str, index: int = None, url: str = ""):
+    # 1. Update in-memory storage
+    if story_id in in_memory_stories:
+        story = in_memory_stories[story_id]
+        if asset_type == "image" and index is not None:
+            if index < len(story["scenes"]):
+                story["scenes"][index]["image_url"] = url
+        elif asset_type == "audio" and index is not None:
+            if index < len(story["scenes"]):
+                story["scenes"][index]["audio_url"] = url
+        elif asset_type == "music":
+            story["bgMusicUrl"] = url
+            
+    # 2. Update Firestore
+    if gcp_mgr.firestore_enabled:
+        try:
+            doc_ref = gcp_mgr.firestore_client.collection("stories").document(story_id)
+            doc = doc_ref.get()
+            if doc.exists:
+                story_data = doc.to_dict()
+                if asset_type == "image" and index is not None:
+                    if index < len(story_data["scenes"]):
+                        story_data["scenes"][index]["image_url"] = url
+                elif asset_type == "audio" and index is not None:
+                    if index < len(story_data["scenes"]):
+                        story_data["scenes"][index]["audio_url"] = url
+                elif asset_type == "music":
+                    story_data["bgMusicUrl"] = url
+                
+                # Check if all media links are generated to set status to "completed"
+                all_done = True
+                for s in story_data["scenes"]:
+                    if not s.get("image_url") or not s.get("audio_url"):
+                        all_done = False
+                if not story_data.get("bgMusicUrl"):
+                    all_done = False
+                
+                if all_done:
+                    story_data["status"] = "completed"
+                    
+                doc_ref.set(story_data)
+        except Exception as e:
+            print(f"Error updating story asset in Firestore: {e}")
 
 frontend_origins = [
     origin.strip()
@@ -54,6 +104,7 @@ class StoryRequest(BaseModel):
     prompt: str
 
 class StoryResponse(BaseModel):
+    story_id: str
     title: str
     scenes: List[Scene]
 
@@ -81,7 +132,34 @@ async def generate_story(req: StoryRequest):
         )
         content = response.choices[0].message.content
         data = json.loads(content)
-        return StoryResponse(**data)
+        
+        story_id = str(uuid.uuid4())
+        
+        # Save to memory and database
+        story_doc = {
+            "story_id": story_id,
+            "title": data["title"],
+            "prompt": req.prompt,
+            "scenes": [
+                {
+                    "text": s["text"],
+                    "image_prompt": s["image_prompt"],
+                    "image_url": "",
+                    "audio_url": ""
+                } for s in data["scenes"]
+            ],
+            "bgMusicUrl": "",
+            "status": "generating"
+        }
+        in_memory_stories[story_id] = story_doc
+        if gcp_mgr.firestore_enabled:
+            gcp_mgr.save_story(story_id, story_doc)
+            
+        return StoryResponse(
+            story_id=story_id,
+            title=data["title"],
+            scenes=[Scene(**s) for s in data["scenes"]]
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -94,8 +172,7 @@ import asyncio
 # Prevent concurrent requests to the free API to avoid rate limits
 image_semaphore = None
 
-@app.get("/api/image")
-async def get_image(prompt: str):
+async def _generate_image_bytes_internal(prompt: str) -> tuple[bytes, str]:
     global image_semaphore
     if image_semaphore is None:
         image_semaphore = asyncio.Semaphore(1)
@@ -104,7 +181,6 @@ async def get_image(prompt: str):
     
     async with image_semaphore:
         # 1. Try Hugging Face API via synchronous InferenceClient in a thread
-        # This completely fixes the Python 3.12 AsyncInferenceClient StopIteration bug and 404 proxy errors
         hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
         if hf_api_key:
             print("Attempting Hugging Face API generation via synchronous InferenceClient...")
@@ -125,7 +201,7 @@ async def get_image(prompt: str):
                     buf = io.BytesIO()
                     image.save(buf, format="JPEG")
                     print(f"Hugging Face ({model}) generation successful!")
-                    return Response(content=buf.getvalue(), media_type="image/jpeg")
+                    return buf.getvalue(), "image/jpeg"
                 except Exception as e:
                     err_str = str(e)
                     if "402" in err_str:
@@ -137,7 +213,7 @@ async def get_image(prompt: str):
         await asyncio.sleep(5)
 
         async with httpx.AsyncClient() as client:
-            # 2. Fallback to Pollinations with multiple host mirrors and models to bypass IP rate limits
+            # 2. Fallback to Pollinations
             last_error = None
             pollinations_configs = [
                 ("https://image.pollinations.ai/prompt", "flux"),
@@ -153,7 +229,7 @@ async def get_image(prompt: str):
                     resp = await client.get(url, timeout=30.0, follow_redirects=True)
                     if resp.status_code == 200 and "image" in resp.headers.get("content-type", "").lower():
                         print(f"Pollinations ({model_opt} via {base_url}) generation successful!")
-                        return Response(content=resp.content, media_type="image/jpeg")
+                        return resp.content, "image/jpeg"
                     last_error = f"HTTP {resp.status_code} (Content-Type: {resp.headers.get('content-type')})"
                 except Exception as e:
                     last_error = str(e)
@@ -161,13 +237,13 @@ async def get_image(prompt: str):
                 print(f"Pollinations ({model_opt}) failed... Error: {last_error}")
                 await asyncio.sleep(3)
 
-            # 3. Fallback to Free AI Image Proxy (api.airforce) with strict content-type validation
+            # 3. Fallback to Free AI Image Proxy
             try:
                 airforce_url = f"https://api.airforce/v1/imagine2?prompt={safe_prompt}&size=16:9"
                 air_resp = await client.get(airforce_url, timeout=20.0, follow_redirects=True)
                 if air_resp.status_code == 200 and "image" in air_resp.headers.get("content-type", "").lower():
                     print("Airforce API generation successful!")
-                    return Response(content=air_resp.content, media_type="image/jpeg")
+                    return air_resp.content, "image/jpeg"
                 else:
                     print(f"Airforce API skipped due to invalid content-type: {air_resp.headers.get('content-type')}")
             except Exception as e:
@@ -179,7 +255,7 @@ async def get_image(prompt: str):
                 fallback_url = f"https://api.dicebear.com/8.x/bottts-neutral/png?seed={seed}&size=400"
                 fallback_resp = await client.get(fallback_url, timeout=15.0, follow_redirects=True)
                 if fallback_resp.status_code == 200 and "image" in fallback_resp.headers.get("content-type", "").lower():
-                    return Response(content=fallback_resp.content, media_type="image/png")
+                    return fallback_resp.content, "image/png"
             except Exception as e:
                 print(f"Dicebear fallback failed: {e}")
                 
@@ -189,14 +265,37 @@ async def get_image(prompt: str):
                 dummy_url = f"https://dummyimage.com/800x450/14050a/e11d48.png&text={dummy_text}"
                 dummy_resp = await client.get(dummy_url, timeout=10.0, follow_redirects=True)
                 if dummy_resp.status_code == 200:
-                    return Response(content=dummy_resp.content, media_type="image/png")
+                    return dummy_resp.content, "image/png"
             except Exception as e:
                 print(f"DummyImage fallback failed: {e}")
                 
             raise HTTPException(status_code=500, detail="All image generation methods failed.")
 
-@app.get("/api/audio")
-async def get_audio(text: str):
+@app.get("/api/image")
+async def get_image(prompt: str, story_id: str = None, scene_index: int = None):
+    if gcp_mgr.storage_enabled and story_id and scene_index is not None:
+        blob_path = f"stories/{story_id}/scene_{scene_index}.jpg"
+        try:
+            blob = gcp_mgr.bucket.blob(blob_path)
+            if blob.exists():
+                print(f"Serving image from GCS cache for story {story_id} scene {scene_index}")
+                return RedirectResponse(url=blob.public_url)
+        except Exception as e:
+            print(f"Error checking GCS image cache: {e}")
+            
+    # Generate new image bytes
+    image_bytes, media_type = await _generate_image_bytes_internal(prompt)
+    
+    # Upload to GCP if enabled
+    if gcp_mgr.storage_enabled and story_id and scene_index is not None:
+        blob_path = f"stories/{story_id}/scene_{scene_index}.jpg"
+        public_url = gcp_mgr.upload_media(image_bytes, blob_path, media_type)
+        if public_url:
+            update_story_asset(story_id, "image", scene_index, public_url)
+            
+    return Response(content=image_bytes, media_type=media_type)
+
+async def _generate_audio_bytes_internal(text: str) -> tuple[bytes, str]:
     text = text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")
@@ -204,13 +303,7 @@ async def get_audio(text: str):
     elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
     
     if elevenlabs_api_key:
-        # Some Great ElevenLabs Voice IDs:
-        # "pNInz6obpgDQGcFmaJgB" - Adam (Clear, fast-paced, American)
-        # "21m00Tcm4TlvDq8ikWAM" - Rachel (Calm, narration, American)
-        # "TxGEqnHWrfWFTfGW9XjX" - Josh (Deep, narration, American)
-        # "EXAVITQu4vr4xnSDxMaL" - Bella (Soft, fast, American)
-        
-        voice_id = "pNInz6obpgDQGcFmaJgB" # Currently set to Adam for faster pacing
+        voice_id = "pNInz6obpgDQGcFmaJgB"
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         headers = {
             "Accept": "audio/mpeg",
@@ -219,7 +312,7 @@ async def get_audio(text: str):
         }
         data = {
             "text": text,
-            "model_id": "eleven_turbo_v2_5", # Turbo model generates audio much faster
+            "model_id": "eleven_turbo_v2_5",
             "voice_settings": {
                 "stability": 0.5,
                 "similarity_boost": 0.75
@@ -230,7 +323,7 @@ async def get_audio(text: str):
             try:
                 resp = await client.post(url, json=data, headers=headers, timeout=30.0)
                 if resp.status_code == 200:
-                    return Response(content=resp.content, media_type="audio/mpeg")
+                    return resp.content, "audio/mpeg"
                 else:
                     print(f"ElevenLabs error {resp.status_code}: {resp.text}")
             except Exception as e:
@@ -243,13 +336,36 @@ async def get_audio(text: str):
         tts = gTTS(text=text, lang='en')
         buf = io.BytesIO()
         tts.write_to_fp(buf)
-        return Response(content=buf.getvalue(), media_type="audio/mpeg")
+        return buf.getvalue(), "audio/mpeg"
     except Exception as e:
         print(f"gTTS exception: {e}")
         raise HTTPException(status_code=500, detail="Audio generation failed")
 
-@app.get("/api/music")
-async def get_music(prompt: str):
+@app.get("/api/audio")
+async def get_audio(text: str, story_id: str = None, scene_index: int = None):
+    if gcp_mgr.storage_enabled and story_id and scene_index is not None:
+        blob_path = f"stories/{story_id}/scene_{scene_index}.mp3"
+        try:
+            blob = gcp_mgr.bucket.blob(blob_path)
+            if blob.exists():
+                print(f"Serving audio from GCS cache for story {story_id} scene {scene_index}")
+                return RedirectResponse(url=blob.public_url)
+        except Exception as e:
+            print(f"Error checking GCS audio cache: {e}")
+            
+    # Generate new audio bytes
+    audio_bytes, media_type = await _generate_audio_bytes_internal(text)
+    
+    # Upload to GCP if enabled
+    if gcp_mgr.storage_enabled and story_id and scene_index is not None:
+        blob_path = f"stories/{story_id}/scene_{scene_index}.mp3"
+        public_url = gcp_mgr.upload_media(audio_bytes, blob_path, media_type)
+        if public_url:
+            update_story_asset(story_id, "audio", scene_index, public_url)
+            
+    return Response(content=audio_bytes, media_type=media_type)
+
+async def _generate_music_bytes_internal(prompt: str) -> tuple[bytes, str]:
     safe_prompt = urllib.parse.quote(prompt.strip()[:100])
     suno_api_key = os.getenv("SUNO_API_KEY")
     
@@ -257,24 +373,22 @@ async def get_music(prompt: str):
         if suno_api_key:
             print("Attempting Suno API music generation...")
             try:
-                # Example Suno API call (using common unofficial/official wrapper format)
                 suno_url = "https://api.sunoaiapi.com/api/v1/generate"
                 headers = {"Authorization": f"Bearer {suno_api_key}"}
                 payload = {"prompt": f"cinematic background music for story: {prompt}", "make_instrumental": True}
                 resp = await client.post(suno_url, json=payload, headers=headers, timeout=35.0)
                 if resp.status_code == 200:
                     data = resp.json()
-                    # Extract audio url from response
                     audio_url = data.get("audio_url") or (data.get("data", {}).get("audio_url"))
                     if audio_url:
                         mp3_resp = await client.get(audio_url, timeout=20.0)
                         if mp3_resp.status_code == 200:
                             print("Suno API music generation successful!")
-                            return Response(content=mp3_resp.content, media_type="audio/mpeg")
+                            return mp3_resp.content, "audio/mpeg"
             except Exception as e:
                 print(f"Suno API exception: {e}")
                 
-        # Fallback to Curated Royalty-Free Cinematic BGM Tracks based on prompt keyword matching
+        # Fallback to Curated Cinematic BGM
         print("Falling back to curated cinematic BGM tracks...")
         prompt_lower = prompt.lower()
         if any(w in prompt_lower for w in ["cyberpunk", "future", "sci-fi", "robot", "space", "city"]):
@@ -283,17 +397,49 @@ async def get_music(prompt: str):
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3"
         elif any(w in prompt_lower for w in ["peaceful", "calm", "cloud", "dream", "forest", "wise", "love"]):
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3"
-        else: # Default Epic Fantasy / Medieval / Adventure
+        else:
             bgm_url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"
             
         try:
             bgm_resp = await client.get(bgm_url, timeout=20.0, follow_redirects=True)
             if bgm_resp.status_code == 200:
-                return Response(content=bgm_resp.content, media_type="audio/mpeg")
+                return bgm_resp.content, "audio/mpeg"
         except Exception as e:
             print(f"Curated BGM fallback failed: {e}")
             
         raise HTTPException(status_code=500, detail="Music generation failed")
+
+@app.get("/api/music")
+async def get_music(prompt: str, story_id: str = None):
+    if gcp_mgr.storage_enabled and story_id:
+        blob_path = f"stories/{story_id}/music.mp3"
+        try:
+            blob = gcp_mgr.bucket.blob(blob_path)
+            if blob.exists():
+                print(f"Serving music from GCS cache for story {story_id}")
+                return RedirectResponse(url=blob.public_url)
+        except Exception as e:
+            print(f"Error checking GCS music cache: {e}")
+            
+    # Generate new music bytes
+    music_bytes, media_type = await _generate_music_bytes_internal(prompt)
+    
+    # Upload to GCP if enabled
+    if gcp_mgr.storage_enabled and story_id:
+        blob_path = f"stories/{story_id}/music.mp3"
+        public_url = gcp_mgr.upload_media(music_bytes, blob_path, media_type)
+        if public_url:
+            update_story_asset(story_id, "music", url=public_url)
+            
+    return Response(content=music_bytes, media_type=media_type)
+
+@app.get("/api/stories")
+def get_stories(limit: int = 12):
+    if gcp_mgr.firestore_enabled:
+        return gcp_mgr.get_recent_stories(limit=limit)
+    else:
+        # Fallback to local in-memory stories, sorted by creation (which is dict insertion order / reverse)
+        return list(in_memory_stories.values())[::-1][:limit]
 
 @app.get("/api/health")
 def health_check():
