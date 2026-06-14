@@ -22,7 +22,7 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 
 ### 1. Landing Page & Prompt Input
 
-![Prompt Input Screen](client/src/assets/project-images/main.png)
+![Prompt Input Screen](client/src/assets/project-images/new.png)
 
 > **The Gateway to MythWeaver**: An elegant, glassmorphism-themed landing interface where users input their creative story concepts. Features a shimmering prompt textarea, glowing crimson accent buttons, and a curated dark-mode aesthetic designed for maximum immersion.
 
