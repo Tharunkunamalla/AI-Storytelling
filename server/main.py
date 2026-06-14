@@ -61,6 +61,26 @@ def update_story_asset(story_id: str, asset_type: str, index: int = None, url: s
         except Exception as e:
             print(f"Error updating story asset in Firestore: {e}")
 
+    # 3. Write/Update story.json in GCS so users can see the texts and title in their bucket folder!
+    if gcp_mgr.storage_enabled and story_id in in_memory_stories:
+        try:
+            story_data = in_memory_stories[story_id]
+            all_done = True
+            for s in story_data["scenes"]:
+                if not s.get("image_url") or not s.get("audio_url"):
+                    all_done = False
+            if not story_data.get("bgMusicUrl"):
+                all_done = False
+            
+            if all_done:
+                story_data["status"] = "completed"
+                
+            json_bytes = json.dumps(story_data, indent=2).encode("utf-8")
+            gcp_mgr.upload_media(json_bytes, f"stories/{story_id}/story.json", "application/json")
+            print(f"Updated story.json in GCS for story {story_id}")
+        except Exception as e:
+            print(f"Error saving story.json to GCS: {e}")
+
 # Accept FRONTEND_ORIGINS or default to allowing all origins (wildcard) for hassle-free deployments
 frontend_origins_str = os.getenv("FRONTEND_ORIGINS")
 if frontend_origins_str:
