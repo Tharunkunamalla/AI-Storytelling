@@ -134,11 +134,18 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
    ```bash
    npm install
    ```
-3. Run the development server:
+3. (Optional) Set up Environment Variables:<br>
+   Create a `.env` file inside the `client` directory (or specify in your deployment environment):
+   ```env
+   # Set your Web3Forms Access Key to receive contact form messages in your email inbox
+   VITE_WEB3FORMS_KEY=your_web3forms_access_key
+   ```
+4. Run the development server:
    ```bash
    npm run dev
    ```
-4. Open `http://localhost:5173` in your browser to experience MythWeaver!
+5. Open `http://localhost:5173` in your browser to experience MythWeaver!
+
 
 ## 🏛️ System Architecture
 

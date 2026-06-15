@@ -4,11 +4,13 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import os
 import uuid
+from datetime import datetime
 # pyrefly: ignore [missing-import]
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import uvicorn
 from gcp_manager import GCPManager
+
 
 load_dotenv()
 
@@ -447,6 +449,53 @@ def get_stories(limit: int = 12):
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
+
+
+class FeedbackRequest(BaseModel):
+    email: str
+    category: str
+    message: str
+
+
+@app.post("/api/feedback")
+async def receive_feedback(req: FeedbackRequest):
+    feedback_item = {
+        "id": str(uuid.uuid4()),
+        "email": req.email,
+        "category": req.category,
+        "message": req.message,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    # 1. Save to local feedback.json
+    try:
+        feedback_list = []
+        if os.path.exists("feedback.json"):
+            with open("feedback.json", "r", encoding="utf-8") as f:
+                try:
+                    feedback_list = json.load(f)
+                    if not isinstance(feedback_list, list):
+                        feedback_list = []
+                except Exception:
+                    feedback_list = []
+        feedback_list.append(feedback_item)
+        with open("feedback.json", "w", encoding="utf-8") as f:
+            json.dump(feedback_list, f, indent=2)
+        print(f"Saved feedback {feedback_item['id']} locally.")
+    except Exception as e:
+        print(f"Error saving feedback locally: {e}")
+
+    # 2. Save to Firestore if enabled
+    if gcp_mgr.firestore_enabled:
+        try:
+            doc_ref = gcp_mgr.firestore_client.collection("feedback").document(feedback_item["id"])
+            doc_ref.set(feedback_item)
+            print(f"Saved feedback {feedback_item['id']} to Firestore.")
+        except Exception as e:
+            print(f"Error saving feedback to Firestore: {e}")
+
+    return {"status": "ok", "message": "Feedback received successfully"}
+
 
 
 if __name__ == "__main__":
