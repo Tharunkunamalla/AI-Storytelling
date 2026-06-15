@@ -12,7 +12,7 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 - **AI Image Generation (5-Tier Redundancy)**: Generates stunning 16:9 cinematic backdrops utilizing Hugging Face Stable Diffusion XL (`asyncio.to_thread`), multi-mirror Pollinations CDN rotation, Airforce AI proxy, Dicebear, and DummyImage fallbacks.<br>
 - **Synchronized Voice Narration**: Features premium ElevenLabs TTS (Turbo model, Adam voice) with real-time word highlighting (`InteractiveAudioText`) and seamless fallback to Google TTS (`gTTS`).<br>
 - **AI Background Music (Suno API & Curated CDNs)**: Generates dynamic AI background music via Suno API (`SUNO_API_KEY`) or serves curated, high-quality royalty-free cinematic BGM tracks matching the prompt's genre keywords (`cyberpunk`, `dark`, `peaceful`, `magic`, etc.).<br>
-- **GCP Cloud Database & Storage (Firestore & GCS)**: Integrates Google Cloud Platform to permanently host generated story assets (illustrations/voice audio) in GCS buckets and store metadata in Firestore. This enables a global "Recent Stories" feed on the dashboard with direct streaming, along with a graceful zero-config fallback to ephemeral memory for local setups.<br> 
+- **GCP Cloud Database & Storage (Firestore & GCS)**: Integrates Google Cloud Platform to permanently host generated story assets (illustrations/voice audio) in GCS buckets and store metadata in Firestore. This enables a global "Recent Stories" feed on the dashboard with direct streaming, along with a graceful zero-config fallback to ephemeral memory for local setups.<br>
 - **Right-Side Expanding Volume Pill**: A premium glassmorphism popover pill at the top right that expands smoothly on click to reveal a volume slider (`min="0" max="1" step="0.01"`) and percentage label, defaulting to a perfectly mixed `15%` background volume.<br>
 - **Dynamic PDF Export (`jsPDF`)**: Client-side generated PDF manuscripts complete with custom canvas watermarking and smart pagination.<br>
 - **Flawless Cinematic Animations**: Built with Framer Motion `AnimatePresence`. The top controls, bottom navigation bar, and scene images are fully unified in the DOM lifecycle, ensuring pixel-perfect transition synchronization across all story slides.
@@ -23,7 +23,7 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
 
 ### 1. Landing Page & Prompt Input
 
-![Prompt Input Screen](client/src/assets/project-images/new.png)
+![Prompt Input Screen](client/src/assets/project-images/m1.png)
 
 > **The Gateway to MythWeaver**: An elegant, glassmorphism-themed landing interface where users input their creative story concepts. Features a shimmering prompt textarea, glowing crimson accent buttons, and a curated dark-mode aesthetic designed for maximum immersion.
 
@@ -102,6 +102,7 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
    ```
 4. Set up your Environment Variables:
    Open `server/.env` and configure your API keys and GCP settings (optional, falls back to in-memory/cache):
+
    ```env
    OPENAI_API_KEY=sk-your-openai-key
    HUGGINGFACE_API_KEY=hf_your_huggingface_token
@@ -114,6 +115,7 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
    GCP_CREDENTIALS_JSON={"type": "service_account", "project_id": ...}
    GCP_FIRESTORE_DATABASE=(default)
    ```
+
 5. Run the server:
 
    ```bash
@@ -145,7 +147,6 @@ MythWeaver is a premium, full-stack AI storytelling application built with **Rea
    npm run dev
    ```
 5. Open `http://localhost:5173` in your browser to experience MythWeaver!
-
 
 ## 🏛️ System Architecture
 
