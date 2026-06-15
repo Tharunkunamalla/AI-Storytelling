@@ -11,9 +11,13 @@ import {
   Download,
   Volume2,
   VolumeX,
+  Info,
+  HelpCircle,
 } from "lucide-react";
 import {motion, AnimatePresence} from "framer-motion";
 import "./App.css";
+import AboutOverlay from "./AboutOverlay";
+import HelpOverlay from "./HelpOverlay";
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
@@ -611,6 +615,8 @@ function App() {
   const [recentStories, setRecentStories] = useState([]);
   const [loadingStories, setLoadingStories] = useState(false);
 
+  const [activeOverlay, setActiveOverlay] = useState(null); // 'about' | 'help' | null
+
   // Poll server connection on mount
   useEffect(() => {
     let active = true;
@@ -993,6 +999,33 @@ function App() {
                 />
               </motion.a>
             </footer>
+
+            <div className="bottom-left-controls">
+              <motion.button
+                className="bottom-control-btn-link glass-panel"
+                onClick={() => setActiveOverlay("about")}
+                whileHover={{scale: 1.05}}
+                whileTap={{scale: 0.95}}
+                initial={{opacity: 0, y: 20}}
+                animate={{opacity: 1, y: 0}}
+                transition={{delay: 0.5}}
+              >
+                <Info size={16} />
+                <span>About</span>
+              </motion.button>
+              <motion.button
+                className="bottom-control-btn-link glass-panel"
+                onClick={() => setActiveOverlay("help")}
+                whileHover={{scale: 1.05}}
+                whileTap={{scale: 0.95}}
+                initial={{opacity: 0, y: 20}}
+                animate={{opacity: 1, y: 0}}
+                transition={{delay: 0.6}}
+              >
+                <HelpCircle size={16} />
+                <span>Help & Suggestions</span>
+              </motion.button>
+            </div>
           </motion.div>
         ) : (
           <StoryViewer
@@ -1002,6 +1035,16 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {activeOverlay === "about" && (
+          <AboutOverlay onClose={() => setActiveOverlay(null)} />
+        )}
+        {activeOverlay === "help" && (
+          <HelpOverlay onClose={() => setActiveOverlay(null)} apiBaseUrl={API_BASE_URL} />
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
