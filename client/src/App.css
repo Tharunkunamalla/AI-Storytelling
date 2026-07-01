@@ -1374,3 +1374,122 @@
   }
 }
 
+/* --- Cinematic Controls Panel Styles --- */
+.cinematic-controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  margin-bottom: 12px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.control-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+
+.selector-options-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.selector-option-btn {
+  flex: 1;
+  min-width: 105px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+}
+
+.selector-option-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-main);
+  transform: translateY(-1px);
+}
+
+.selector-option-btn.active {
+  background: rgba(225, 29, 72, 0.1);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.25), inset 0 0 8px rgba(225, 29, 72, 0.1);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.selector-option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.btn-main-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-sub-label {
+  font-size: 9px;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.selector-option-btn.active .btn-sub-label {
+  color: #f43f5e;
+}
+
+/* Settings Toggle Button Pill */
+.settings-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(225, 29, 72, 0.03);
+  border: 1px solid rgba(225, 29, 72, 0.15);
+  border-radius: 9999px;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.settings-toggle-btn:hover {
+  background: rgba(225, 29, 72, 0.08);
+  border-color: rgba(225, 29, 72, 0.4);
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.2);
+}
+
+
+
