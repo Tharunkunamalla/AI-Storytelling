@@ -152,6 +152,8 @@ class Scene(BaseModel):
 
 class StoryRequest(BaseModel):
     prompt: str
+    genre: str = "adventure"
+    mood: str = "orchestral"
 
 class StoryResponse(BaseModel):
     story_id: str
@@ -167,13 +169,22 @@ async def generate_story(req: StoryRequest):
             detail="API key not configured. Please add GROQ_API_KEY or OPENAI_API_KEY to .env",
         )
     try:
+        genre_prompts = {
+            "cyberpunk": "Write a gritty, neon-soaked cyberpunk sci-fi story. Incorporate elements of high technology, cybernetics, virtual networks, and rain-slicked city streets.",
+            "fantasy": "Write an epic high-fantasy story. Incorporate elements of magic, sorcery, ancient ruins, mythical beasts, and legendary swords.",
+            "noir": "Write a hardboiled noir detective mystery. Incorporate elements of trench coats, deep shadows, rainy alleyways, trenchant cynicism, and detective deduction.",
+            "horror": "Write a chilling, atmospheric gothic horror story. Incorporate elements of ancient curses, eerie whispers, creeping shadows, decayed castles, and dread.",
+            "adventure": "Write a classic, high-spirited heroic adventure story. Incorporate elements of hidden treasures, rugged explorations, daring escapes, and ancient ruins."
+        }
+        genre_instruction = genre_prompts.get(req.genre.lower(), genre_prompts["adventure"])
+
         response = await llm_client.chat.completions.create(
             model=model_name,
             response_format={"type": "json_object"},
             messages=[
                 {
                     "role": "system", 
-                    "content": "You are a cinematic story writer. You MUST output your response as a valid JSON object. The JSON object must contain exactly two keys: 'title' (a string) and 'scenes' (a list of objects). Each object in the 'scenes' list must have two keys: 'text' (the narrative paragraph, around 3-4 sentences) and 'image_prompt' (a highly detailed, comma-separated descriptive prompt for an AI image generator to visualize the paragraph, e.g., 'cyberpunk city, neon lights, flying cars, 8k resolution, cinematic lighting, masterpiece'). Generate a story with exactly 3 to 4 scenes."
+                    "content": f"You are a cinematic story writer. {genre_instruction} You MUST output your response as a valid JSON object. The JSON object must contain exactly two keys: 'title' (a string) and 'scenes' (a list of objects). Each object in the 'scenes' list must have two keys: 'text' (the narrative paragraph, around 3-4 sentences) and 'image_prompt' (a highly detailed, comma-separated descriptive prompt for an AI image generator to visualize the paragraph, e.g., 'cyberpunk city, neon lights, flying cars, 8k resolution, cinematic lighting, masterpiece'). Generate a story with exactly 3 to 4 scenes."
                 },
                 {"role": "user", "content": f"Write a story about: {req.prompt}"}
             ],
@@ -190,6 +201,8 @@ async def generate_story(req: StoryRequest):
             "story_id": story_id,
             "title": data["title"],
             "prompt": req.prompt,
+            "genre": req.genre,
+            "mood": req.mood,
             "scenes": [
                 {
                     "text": s["text"],
@@ -346,15 +359,23 @@ async def get_image(prompt: str, story_id: str = None, scene_index: int = None):
             
     return Response(content=image_bytes, media_type=media_type)
 
-async def _generate_audio_bytes_internal(text: str) -> tuple[bytes, str]:
+async def _generate_audio_bytes_internal(text: str, voice: str = "adam") -> tuple[bytes, str]:
     text = text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")
         
     elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
     
+    # Map voice profiles to ElevenLabs voice IDs
+    voice_map = {
+        "adam": "pNInz6obpgDQGcFmaJgB",
+        "rachel": "21m00Tcm4TlvDq8ikWAM",
+        "antoni": "ErXwobaYiN019PkySvjV",
+        "bella": "EXAVITQu4vr4xnSDxMaL"
+    }
+    voice_id = voice_map.get(voice.lower(), voice_map["adam"])
+    
     if elevenlabs_api_key:
-        voice_id = "pNInz6obpgDQGcFmaJgB"
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         headers = {
             "Accept": "audio/mpeg",
@@ -380,11 +401,20 @@ async def _generate_audio_bytes_internal(text: str) -> tuple[bytes, str]:
             except Exception as e:
                 print(f"ElevenLabs exception: {e}")
 
-    # Fallback to Google TTS
+    # Fallback to Google TTS with regional accents
     try:
         from gtts import gTTS
         import io
-        tts = gTTS(text=text, lang='en')
+        
+        fallback_accents = {
+            "adam": ("en", "co.uk"),
+            "rachel": ("en", "com"),
+            "antoni": ("en", "co.in"),
+            "bella": ("en", "ca")
+        }
+        lang, tld = fallback_accents.get(voice.lower(), ("en", "co.uk"))
+        
+        tts = gTTS(text=text, lang=lang, tld=tld)
         buf = io.BytesIO()
         tts.write_to_fp(buf)
         return buf.getvalue(), "audio/mpeg"
@@ -393,31 +423,30 @@ async def _generate_audio_bytes_internal(text: str) -> tuple[bytes, str]:
         raise HTTPException(status_code=500, detail="Audio generation failed")
 
 @app.get("/api/audio")
-async def get_audio(text: str, story_id: str = None, scene_index: int = None):
+async def get_audio(text: str, voice: str = "adam", story_id: str = None, scene_index: int = None):
     if gcp_mgr.storage_enabled and story_id and scene_index is not None:
-        blob_path = f"stories/{story_id}/scene_{scene_index}.mp3"
+        blob_path = f"stories/{story_id}/scene_{scene_index}_{voice}.mp3"
         try:
             blob = gcp_mgr.bucket.blob(blob_path)
             if blob.exists():
-                print(f"Serving audio from GCS cache for story {story_id} scene {scene_index}")
+                print(f"Serving audio from GCS cache for story {story_id} scene {scene_index} voice {voice}")
                 return RedirectResponse(url=blob.public_url)
         except Exception as e:
             print(f"Error checking GCS audio cache: {e}")
             
     # Generate new audio bytes
-    audio_bytes, media_type = await _generate_audio_bytes_internal(text)
+    audio_bytes, media_type = await _generate_audio_bytes_internal(text, voice)
     
     # Upload to GCP if enabled
     if gcp_mgr.storage_enabled and story_id and scene_index is not None:
-        blob_path = f"stories/{story_id}/scene_{scene_index}.mp3"
+        blob_path = f"stories/{story_id}/scene_{scene_index}_{voice}.mp3"
         public_url = gcp_mgr.upload_media(audio_bytes, blob_path, media_type)
         if public_url:
             update_story_asset(story_id, "audio", scene_index, public_url)
             
     return Response(content=audio_bytes, media_type=media_type)
 
-async def _get_bgm_url(prompt: str) -> str:
-    safe_prompt = urllib.parse.quote(prompt.strip()[:100])
+async def _get_bgm_url(prompt: str, mood: str = "orchestral") -> str:
     suno_api_key = os.getenv("SUNO_API_KEY")
     
     async with httpx.AsyncClient() as client:
@@ -426,7 +455,8 @@ async def _get_bgm_url(prompt: str) -> str:
             try:
                 suno_url = "https://api.sunoaiapi.com/api/v1/generate"
                 headers = {"Authorization": f"Bearer {suno_api_key}"}
-                payload = {"prompt": f"cinematic background music for story: {prompt}", "make_instrumental": True}
+                suno_prompt = f"cinematic instrumental BGM, style: {prompt}, mood: {mood}"
+                payload = {"prompt": suno_prompt[:150], "make_instrumental": True}
                 resp = await client.post(suno_url, json=payload, headers=headers, timeout=35.0)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -437,29 +467,24 @@ async def _get_bgm_url(prompt: str) -> str:
             except Exception as e:
                 print(f"Suno API exception: {e}")
                 
-        # Fallback to Curated Cinematic BGM
-        print("Falling back to curated cinematic BGM tracks...")
-        prompt_lower = prompt.lower()
-        # 1. Action / Sci-Fi / Cyberpunk / Battle
-        if any(w in prompt_lower for w in ["cyberpunk", "future", "sci-fi", "robot", "space", "city", "laser", "spaceship", "battle", "war", "fight", "action", "soldier", "warrior", "hero", "combat"]):
+        # Fallback to Curated Cinematic BGM based on selected mood
+        print(f"Falling back to curated BGM matching mood: {mood}...")
+        mood_lower = mood.lower()
+        if mood_lower == "synthwave":
             return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Volatile%20Reaction.mp3"
-        # 2. Dark / Spooky / Mysterious / Magic
-        elif any(w in prompt_lower for w in ["dark", "sorcerer", "magic", "demon", "horror", "mystery", "spooky", "scary", "ghost", "vampire", "witch", "monster", "evil", "shadow", "sinister", "dungeon", "creepy"]):
+        elif mood_lower == "dark_ambient":
             return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3"
-        # 3. Calm / Peaceful / Romantic / Emotional-Nature
-        elif any(w in prompt_lower for w in ["peaceful", "calm", "cloud", "dream", "forest", "wise", "love", "friendship", "nature", "river", "garden", "flower", "grass", "quiet", "sleep", "soft", "angel", "sunny", "sky"]):
+        elif mood_lower == "lofi":
             return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3"
-        # 4. Sad / Melancholy / Dramatic
-        elif any(w in prompt_lower for w in ["sad", "crying", "tears", "pain", "loss", "grief", "alone", "lonely", "tragedy", "sorrow", "leaving", "forgotten", "empty"]):
+        elif mood_lower == "noir":
             return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Leaving%20Home.mp3"
-        # 5. Default: Epic Fantasy / Adventure
-        else:
+        else: # orchestral
             return "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"
 
 @app.get("/api/music")
-async def get_music(prompt: str, story_id: str = None):
+async def get_music(prompt: str, mood: str = "orchestral", story_id: str = None):
     # Resolve the BGM URL directly (either Suno generated URL or curated Incompetech URL)
-    bgm_url = await _get_bgm_url(prompt)
+    bgm_url = await _get_bgm_url(prompt, mood)
     
     # Store the resolved URL in the databases (avoids uploading 6MB files to GCS!)
     if story_id:
