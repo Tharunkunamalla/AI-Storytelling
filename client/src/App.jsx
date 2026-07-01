@@ -31,6 +31,7 @@ function App() {
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [recentStories, setRecentStories] = useState([]);
   const [loadingStories, setLoadingStories] = useState(false);
+  const abortControllerRef = useRef(null);
 
   const [selectedVoice, setSelectedVoice] = useState("adam");
   const [selectedGenre, setSelectedGenre] = useState("adventure");
@@ -146,12 +147,30 @@ function App() {
     setStoryData(playData);
   };
 
+  const cancelStoryGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setLoading(false);
+    setPreloading(false);
+    setPreloadProgress(0);
+    setError("Story generation was cancelled.");
+  };
+
   const generateStory = async (e) => {
     e.preventDefault();
     if (!prompt.trim()) return;
 
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+
     setLoading(true);
     setError("");
+
+    // Initialize abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     try {
       // 1. Generate text first
@@ -163,6 +182,7 @@ function App() {
           genre: selectedGenre,
           mood: selectedMood
         }),
+        signal,
       });
 
       if (!response.ok) {
@@ -172,6 +192,8 @@ function App() {
 
       const data = await response.json();
 
+      if (signal.aborted) return;
+
       // 2. Preload all assets (images + audio) before showing
       setLoading(false);
       setPreloading(true);
@@ -180,11 +202,14 @@ function App() {
       let loaded = 0;
 
       const updateProgress = () => {
+        if (signal.aborted) return;
         loaded++;
         setPreloadProgress(Math.round((loaded / totalAssets) * 100));
       };
 
       const promises = data.scenes.map(async (scene, index) => {
+        if (signal.aborted) return;
+
         // Preload Image
         const imgPrompt = encodeURIComponent(
           scene.image_prompt
@@ -195,27 +220,33 @@ function App() {
         );
         const imgUrl = `${API_BASE_URL}/api/image?prompt=${imgPrompt}&story_id=${data.story_id}&scene_index=${index}`;
         try {
-          const imgRes = await fetch(imgUrl);
+          const imgRes = await fetch(imgUrl, { signal });
           const imgBlob = await imgRes.blob();
           scene.cachedImageUrl = URL.createObjectURL(imgBlob);
         } catch (e) {
+          if (e.name === "AbortError") return;
           scene.cachedImageUrl = imgUrl; // fallback
         }
         updateProgress();
 
+        if (signal.aborted) return;
+
         // Preload Audio
         const audioUrl = `${API_BASE_URL}/api/audio?text=${encodeURIComponent(scene.text)}&voice=${selectedVoice}&story_id=${data.story_id}&scene_index=${index}`;
         try {
-          const audioRes = await fetch(audioUrl);
+          const audioRes = await fetch(audioUrl, { signal });
           const audioBlob = await audioRes.blob();
           scene.cachedAudioUrl = URL.createObjectURL(audioBlob);
         } catch (e) {
+          if (e.name === "AbortError") return;
           scene.cachedAudioUrl = audioUrl; // fallback
         }
         updateProgress();
       });
 
       await Promise.all(promises);
+
+      if (signal.aborted) return;
 
       // Background Music BGM (bypass pre-fetch to avoid CORS redirect issues)
       const bgmUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}&mood=${selectedMood}&story_id=${data.story_id}`;
@@ -226,6 +257,10 @@ function App() {
       setPrompt("");
       fetchRecentStories(); // Refresh feed
     } catch (err) {
+      if (err.name === "AbortError") {
+        console.log("Story generation aborted.");
+        return;
+      }
       setError(
         err.message ||
           "An error occurred while generating your story. Please try again.",
@@ -416,6 +451,24 @@ function App() {
                       style={{width: `${preloadProgress}%`}}
                     ></div>
                   </div>
+                </div>
+              )}
+
+              {/* Stop Story Creation Option (visible if loading or if preloading is below 10%) */}
+              {(loading || (preloading && preloadProgress < 10)) && (
+                <div style={{ display: "flex", justifyContent: "center", marginTop: "12px", width: "100%" }}>
+                  <motion.button
+                    type="button"
+                    className="stop-creation-btn glass-panel"
+                    onClick={cancelStoryGeneration}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span>Stop Story Creation</span>
+                  </motion.button>
                 </div>
               )}
 
