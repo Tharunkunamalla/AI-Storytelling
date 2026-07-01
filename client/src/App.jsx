@@ -5,6 +5,7 @@ import {
   BookOpen,
   Info,
   HelpCircle,
+  Mic,
 } from "lucide-react";
 import {motion, AnimatePresence} from "framer-motion";
 import "./App.css";
@@ -37,6 +38,51 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   const [activeOverlay, setActiveOverlay] = useState(null); // 'about' | 'help' | null
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = "en-US";
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      };
+
+      rec.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
 
   // Poll server connection on mount
   useEffect(() => {
@@ -309,6 +355,18 @@ function App() {
                   className="prompt-input"
                   disabled={loading || preloading}
                 />
+                
+                {/* Voice Dictation Mic Button */}
+                <button
+                  type="button"
+                  className={`voice-mic-btn ${isListening ? "listening" : ""}`}
+                  onClick={toggleListening}
+                  disabled={loading || preloading}
+                  title={isListening ? "Listening... Click to stop" : "Talk instead of typing"}
+                >
+                  <Mic size={20} color={isListening ? "#f43f5e" : "#cbd5e1"} />
+                  {isListening && <span className="mic-pulse-ring"></span>}
+                </button>
                 <button
                   type="submit"
                   disabled={loading || preloading || !prompt.trim()}

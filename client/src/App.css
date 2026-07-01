@@ -1508,6 +1508,74 @@
   filter: drop-shadow(0 0 4px rgba(225, 29, 72, 0.6));
 }
 
+/* Voice Microphone Dictation Button */
+.voice-mic-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  margin-right: 4px;
+  margin-top: 5px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.voice-mic-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.voice-mic-btn.listening {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: #f43f5e;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.4);
+  animation: pulse-recording 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-recording {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 24px rgba(244, 63, 94, 0.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.mic-pulse-ring {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid #f43f5e;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: ripple-mic 1.5s infinite cubic-bezier(0.25, 0, 0, 1);
+}
+
+@keyframes ripple-mic {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+
 
 
 
