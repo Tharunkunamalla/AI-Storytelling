@@ -18,6 +18,31 @@ app = FastAPI(title="AI Storytelling App API")
 
 gcp_mgr = GCPManager()
 in_memory_stories = {}
+LOCAL_STORIES_FILE = "stories_local.json"
+
+def load_local_stories():
+    global in_memory_stories
+    if os.path.exists(LOCAL_STORIES_FILE):
+        try:
+            with open(LOCAL_STORIES_FILE, "r", encoding="utf-8") as f:
+                in_memory_stories = json.load(f)
+                print(f"Loaded {len(in_memory_stories)} stories from local storage file '{LOCAL_STORIES_FILE}'.")
+        except Exception as e:
+            print(f"Error loading local stories file: {e}")
+            in_memory_stories = {}
+    else:
+        in_memory_stories = {}
+
+def save_local_stories():
+    try:
+        with open(LOCAL_STORIES_FILE, "w", encoding="utf-8") as f:
+            json.dump(in_memory_stories, f, indent=2)
+            print(f"Saved stories to local storage file '{LOCAL_STORIES_FILE}'.")
+    except Exception as e:
+        print(f"Error saving local stories file: {e}")
+
+# Load stories on startup
+load_local_stories()
 
 def update_story_asset(story_id: str, asset_type: str, index: int = None, url: str = ""):
     # 1. Update in-memory storage
@@ -82,6 +107,9 @@ def update_story_asset(story_id: str, asset_type: str, index: int = None, url: s
             print(f"Updated story.json in GCS for story {story_id}")
         except Exception as e:
             print(f"Error saving story.json to GCS: {e}")
+
+    # 4. Save to local stories file
+    save_local_stories()
 
 # Accept FRONTEND_ORIGINS or default to allowing all origins (wildcard) for hassle-free deployments
 frontend_origins_str = os.getenv("FRONTEND_ORIGINS")
@@ -174,6 +202,7 @@ async def generate_story(req: StoryRequest):
             "status": "generating"
         }
         in_memory_stories[story_id] = story_doc
+        save_local_stories()
         if gcp_mgr.firestore_enabled:
             gcp_mgr.save_story(story_id, story_doc)
             
