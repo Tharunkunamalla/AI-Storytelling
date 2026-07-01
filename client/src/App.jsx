@@ -14,6 +14,16 @@ import {
   Info,
   HelpCircle,
   Sliders,
+  Compass,
+  Cpu,
+  Glasses,
+  Skull,
+  Music,
+  Zap,
+  Moon,
+  Coffee,
+  Mic,
+  User,
 } from "lucide-react";
 import {motion, AnimatePresence} from "framer-motion";
 import "./App.css";
@@ -1105,7 +1115,7 @@ function App() {
                     initial={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
                     animate={{ height: "auto", opacity: 1, marginTop: 16, marginBottom: 16 }}
                     exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
-                    transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                    transition={{ type: "spring", stiffness: 100, damping: 17 }}
                     style={{ overflow: "hidden", width: "100%" }}
                   >
                     <div className="cinematic-controls-panel glass-panel" style={{ marginBottom: 0 }}>
@@ -1114,10 +1124,10 @@ function App() {
                         <label className="control-group-title">🎙️ Narrator Profile</label>
                         <div className="selector-options-row">
                           {[
-                            { id: "adam", label: "Adam", desc: "Cinematic" },
-                            { id: "rachel", label: "Rachel", desc: "Sci-Fi AI" },
-                            { id: "antoni", label: "Antoni", desc: "Mystic" },
-                            { id: "bella", label: "Bella", desc: "Cozy" }
+                            { id: "adam", label: "Adam", desc: "Cinematic", icon: <User size={16} /> },
+                            { id: "rachel", label: "Rachel", desc: "Sci-Fi AI", icon: <User size={16} /> },
+                            { id: "antoni", label: "Antoni", desc: "Mystic", icon: <User size={16} /> },
+                            { id: "bella", label: "Bella", desc: "Cozy", icon: <User size={16} /> }
                           ].map((v) => (
                             <button
                               key={v.id}
@@ -1126,7 +1136,10 @@ function App() {
                               onClick={() => setSelectedVoice(v.id)}
                               disabled={loading || preloading}
                             >
-                              <span className="btn-main-label">{v.label}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                                {v.icon}
+                                <span className="btn-main-label">{v.label}</span>
+                              </div>
                               <span className="btn-sub-label">{v.desc}</span>
                             </button>
                           ))}
@@ -1138,11 +1151,11 @@ function App() {
                         <label className="control-group-title">🎭 Narrative Genre</label>
                         <div className="selector-options-row">
                           {[
-                            { id: "adventure", label: "Adventure", icon: "🗺️" },
-                            { id: "cyberpunk", label: "Cyberpunk", icon: "🚀" },
-                            { id: "fantasy", label: "Fantasy", icon: "🧙" },
-                            { id: "noir", label: "Noir", icon: "🕵️" },
-                            { id: "horror", label: "Gothic Horror", icon: "💀" }
+                            { id: "adventure", label: "Adventure", icon: <Compass size={16} /> },
+                            { id: "cyberpunk", label: "Cyberpunk", icon: <Cpu size={16} /> },
+                            { id: "fantasy", label: "Fantasy", icon: <Sparkles size={16} /> },
+                            { id: "noir", label: "Noir", icon: <Glasses size={16} /> },
+                            { id: "horror", label: "Gothic Horror", icon: <Skull size={16} /> }
                           ].map((g) => (
                             <button
                               key={g.id}
@@ -1163,11 +1176,11 @@ function App() {
                         <label className="control-group-title">🎵 Music Soundtrack</label>
                         <div className="selector-options-row">
                           {[
-                            { id: "orchestral", label: "Orchestral", icon: "🎻" },
-                            { id: "synthwave", label: "Synthwave", icon: "🎸" },
-                            { id: "dark_ambient", label: "Dark Ambient", icon: "🌌" },
-                            { id: "lofi", label: "Cozy Lo-Fi", icon: "☕" },
-                            { id: "noir", label: "Noir Jazz", icon: "🎷" }
+                            { id: "orchestral", label: "Orchestral", icon: <Music size={16} /> },
+                            { id: "synthwave", label: "Synthwave", icon: <Zap size={16} /> },
+                            { id: "dark_ambient", label: "Dark Ambient", icon: <Moon size={16} /> },
+                            { id: "lofi", label: "Cozy Lo-Fi", icon: <Coffee size={16} /> },
+                            { id: "noir", label: "Noir Jazz", icon: <Mic size={16} /> }
                           ].map((m) => (
                             <button
                               key={m.id}

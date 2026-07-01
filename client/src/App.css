@@ -1491,5 +1491,23 @@
   box-shadow: 0 0 12px rgba(225, 29, 72, 0.2);
 }
 
+/* Option Button Icons Styling */
+.selector-option-btn svg {
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.selector-option-btn:hover svg {
+  color: var(--text-main);
+  transform: scale(1.05);
+}
+
+.selector-option-btn.active svg {
+  color: #fff;
+  filter: drop-shadow(0 0 4px rgba(225, 29, 72, 0.6));
+}
+
+
 
 
