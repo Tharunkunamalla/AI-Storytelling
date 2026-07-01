@@ -24,7 +24,7 @@ FALLBACK_ACCENTS = {
 
 CURATED_BGM = {
     "synthwave": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Volatile%20Reaction.mp3",
-    "dark_ambient": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sinister%20Dark.mp3",
+    "dark_ambient": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Gathering%20Darkness.mp3",
     "lofi": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Enchanted%20Valley.mp3",
     "noir": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Leaving%20Home.mp3",
     "orchestral": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Land.mp3"

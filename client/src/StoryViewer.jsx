@@ -31,6 +31,20 @@ const StoryViewer = ({ storyData, onReset }) => {
   }, [bgVolume, storyData]);
 
   useEffect(() => {
+    const audio = bgMusicRef.current;
+    if (audio) {
+      audio.play().catch((e) => {
+        console.log("Background music play prevented:", e);
+      });
+    }
+    return () => {
+      if (audio) {
+        audio.pause();
+      }
+    };
+  }, [storyData]);
+
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         volumePillRef.current &&
