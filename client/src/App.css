@@ -1212,3 +1212,165 @@
   width: auto;
   padding: 12px 30px;
 }
+
+/* --- Futuristic Visual Enhancements --- */
+
+
+
+/* Ambient Backlight Color Glow */
+.ambient-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 70%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(140px) opacity(0.35);
+  pointer-events: none;
+  z-index: 0;
+  transition: background-image 1.5s ease-in-out;
+}
+
+/* Visualizer HUD Component */
+.visualizer-hud-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  height: 32px;
+  min-width: 110px;
+  margin: 0 4px;
+}
+
+.visualizer-glow-underlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.12) 0%, transparent 80%);
+  pointer-events: none;
+}
+
+.audio-wave-canvas {
+  display: block;
+  z-index: 1;
+}
+
+/* Glassmorphic Sci-Fi HUD Cockpit panel */
+.sci-fi-hud {
+  position: absolute;
+  top: 100px;
+  left: 24px;
+  z-index: 10;
+  width: 220px;
+  padding: 16px;
+  font-family: monospace;
+  background: rgba(10, 10, 12, 0.5);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(244, 63, 94, 0.05);
+  pointer-events: none;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #94a3b8;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: hudEntrance 1s ease-out;
+}
+
+@keyframes hudEntrance {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.hud-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.3);
+  padding-bottom: 6px;
+}
+
+.hud-blink-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #22c55e;
+  animation: hudPulse 1.5s infinite alternate;
+}
+
+@keyframes hudPulse {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+.hud-title {
+  font-weight: bold;
+  color: #f1f5f9;
+}
+
+.hud-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hud-label {
+  color: #64748b;
+}
+
+.hud-value {
+  color: #f43f5e;
+  text-shadow: 0 0 6px rgba(244, 63, 94, 0.3);
+  font-weight: bold;
+}
+
+.hud-footer {
+  margin-top: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  font-size: 9px;
+  color: #475569;
+  text-align: center;
+}
+
+/* Adjust layout spacing inside audio controls for the visualizer */
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px !important;
+  width: 100%;
+}
+
+.audio-progress-bar {
+  flex-grow: 1;
+}
+
+@media (max-width: 900px) {
+  .sci-fi-hud {
+    display: none; /* Hide telemetry panel on mobile screens to save space */
+  }
+}
+

@@ -23,6 +23,111 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
+const AudioVisualizer = ({ audioRef, isPlaying }) => {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    if (isPlaying && audioRef.current) {
+      if (!audioContextRef.current) {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          const audioCtx = new AudioContextClass();
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+
+          let source = audioRef.current.__sourceNode;
+          if (!source) {
+            source = audioCtx.createMediaElementSource(audioRef.current);
+            audioRef.current.__sourceNode = source;
+          }
+
+          source.connect(analyser);
+          analyser.connect(audioCtx.destination);
+
+          audioContextRef.current = audioCtx;
+          analyserRef.current = analyser;
+        } catch (e) {
+          console.warn("AudioContext setup failed:", e);
+        }
+      }
+
+      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+    }
+
+    const bufferLength = analyserRef.current ? analyserRef.current.frequencyBinCount : 8;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      if (isPlaying && analyserRef.current) {
+        analyserRef.current.getByteFrequencyData(dataArray);
+      } else {
+        for (let i = 0; i < bufferLength; i++) {
+          dataArray[i] = isPlaying ? Math.sin(Date.now() * 0.01 + i) * 20 + 30 : 5;
+        }
+      }
+
+      const barWidth = width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const val = dataArray[i];
+        const barHeight = (val / 255) * height * 0.75 + 2;
+
+        const gradient = ctx.createLinearGradient(0, height / 2 - barHeight / 2, 0, height / 2 + barHeight / 2);
+        gradient.addColorStop(0, "rgba(244, 63, 94, 0.4)");
+        gradient.addColorStop(0.5, "rgba(225, 29, 72, 1)");
+        gradient.addColorStop(1, "rgba(244, 63, 94, 0.4)");
+
+        ctx.fillStyle = gradient;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "rgba(244, 63, 94, 0.8)";
+        
+        const y = height / 2 - barHeight / 2;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x + 1, y, barWidth - 2, barHeight, 2);
+        } else {
+          ctx.rect(x + 1, y, barWidth - 2, barHeight);
+        }
+        ctx.fill();
+
+        x += barWidth;
+      }
+      
+      ctx.shadowBlur = 0;
+      animationRef.current = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isPlaying, audioRef]);
+
+  return (
+    <div className="visualizer-hud-container">
+      <div className="visualizer-glow-underlay"></div>
+      <canvas ref={canvasRef} width={90} height={24} className="audio-wave-canvas" />
+    </div>
+  );
+};
+
 const InteractiveAudioText = ({text, audioUrl, onEnded, isActive}) => {
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -77,7 +182,32 @@ const InteractiveAudioText = ({text, audioUrl, onEnded, isActive}) => {
   };
 
   const words = text.split(" ");
-  const currentWordIndex = Math.floor(progress * words.length);
+  
+  // Character-weighted word highlight sync
+  const wordLengths = words.map(w => w.length + 1);
+  const totalChars = wordLengths.reduce((a, b) => a + b, 0);
+  const currentSpeechChar = progress * totalChars;
+  
+  let cumulativeChars = 0;
+  let currentWordIndex = -1;
+  for (let i = 0; i < wordLengths.length; i++) {
+    cumulativeChars += wordLengths[i];
+    if (currentSpeechChar <= cumulativeChars) {
+      currentWordIndex = i;
+      break;
+    }
+  }
+  if (progress >= 0.99) {
+    currentWordIndex = words.length - 1;
+  }
+
+  const getSeekPercentage = (index) => {
+    let charsBefore = 0;
+    for (let i = 0; i < index; i++) {
+      charsBefore += wordLengths[i];
+    }
+    return totalChars > 0 ? charsBefore / totalChars : 0;
+  };
 
   return (
     <div className="interactive-audio-module">
@@ -85,7 +215,7 @@ const InteractiveAudioText = ({text, audioUrl, onEnded, isActive}) => {
         {words.map((word, i) => (
           <span
             key={i}
-            onClick={() => seekTo(i / words.length)}
+            onClick={() => seekTo(getSeekPercentage(i))}
             className={`word ${i <= currentWordIndex ? "spoken" : ""}`}
           >
             {word}{" "}
@@ -111,6 +241,8 @@ const InteractiveAudioText = ({text, audioUrl, onEnded, isActive}) => {
               <Play size={20} fill="currentColor" />
             )}
           </button>
+
+          <AudioVisualizer audioRef={audioRef} isPlaying={playing} />
 
           <div
             className="audio-progress-bar"
@@ -341,21 +473,55 @@ const StoryViewer = ({storyData, onReset}) => {
       animate={{opacity: 1}}
       exit={{opacity: 0}}
     >
+
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
-          initial={{opacity: 0, x: direction * 100, scale: 1.05}}
-          animate={{opacity: 1, x: 0, scale: 1}}
-          exit={{opacity: 0, x: direction * -100, filter: "blur(10px)"}}
-          transition={{duration: 0.8, ease: "easeInOut"}}
+          initial={{ 
+            opacity: 0, 
+            x: direction * 120, 
+            skewX: direction * 4,
+            filter: "hue-rotate(45deg) brightness(1.3)" 
+          }}
+          animate={{ 
+            opacity: 1, 
+            x: 0, 
+            skewX: 0,
+            filter: "hue-rotate(0deg) brightness(1)" 
+          }}
+          exit={{ 
+            opacity: 0, 
+            x: direction * -120, 
+            skewX: direction * -4,
+            filter: "hue-rotate(-45deg) brightness(1.3)" 
+          }}
+          transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
           className="scene-slide"
         >
-          <img
+          {/* Dynamic Ambient Color Backlight */}
+          <div 
+            className="ambient-glow"
+            style={{ backgroundImage: `url(${storyData.scenes[currentSlide].cachedImageUrl})` }}
+          />
+
+          <motion.img
             src={storyData.scenes[currentSlide].cachedImageUrl}
             alt="Scene Background"
             className="scene-bg-image"
+            initial={{ scale: 1.0, x: 0, y: 0 }}
+            animate={{ 
+              scale: 1.08, 
+              x: direction * -10, 
+              y: direction * -5 
+            }}
+            transition={{ 
+              duration: 25, 
+              ease: "easeOut" 
+            }}
           />
           <div className="scene-overlay"></div>
+
+
 
           <div className="scene-content">
             <motion.h2
@@ -746,16 +912,9 @@ function App() {
 
       await Promise.all(promises);
 
-      // Preload Background Music
+      // Background Music BGM (bypass pre-fetch to avoid CORS redirect issues)
       const bgmUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}&story_id=${data.story_id}`;
-      let cachedBgmUrl = bgmUrl;
-      try {
-        const bgmRes = await fetch(bgmUrl);
-        const bgmBlob = await bgmRes.blob();
-        cachedBgmUrl = URL.createObjectURL(bgmBlob);
-      } catch (e) {}
-
-      data.bgMusicUrl = cachedBgmUrl;
+      data.bgMusicUrl = bgmUrl;
       setStoryData(data);
       setPreloading(false);
       setPreloadProgress(0);
