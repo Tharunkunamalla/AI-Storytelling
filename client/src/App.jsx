@@ -1,20 +1,20 @@
 import React, {useState, useRef, useEffect} from "react";
 import {motion, AnimatePresence} from "framer-motion";
 import "./App.css";
-import AboutOverlay from "./AboutOverlay";
-import HelpOverlay from "./HelpOverlay";
-import StoryViewer from "./StoryViewer";
-import CinematicControls from "./CinematicControls";
+import AboutOverlay from "./components/AboutOverlay";
+import HelpOverlay from "./components/HelpOverlay";
+import StoryViewer from "./components/StoryViewer";
+import CinematicControls from "./components/CinematicControls";
 
 // Extracted sub-components and hooks
-import useSpeechRecognition from "./useSpeechRecognition";
-import ConnectingScreen from "./ConnectingScreen";
-import Header from "./Header";
-import PromptForm from "./PromptForm";
-import GenerationStatus from "./GenerationStatus";
-import CommunityCreations from "./CommunityCreations";
-import Footer from "./Footer";
-import BottomControls from "./BottomControls";
+import useSpeechRecognition from "./hooks/useSpeechRecognition";
+import ConnectingScreen from "./components/ConnectingScreen";
+import Header from "./components/Header";
+import PromptForm from "./components/PromptForm";
+import GenerationStatus from "./components/GenerationStatus";
+import CommunityCreations from "./components/CommunityCreations";
+import Footer from "./components/Footer";
+import BottomControls from "./components/BottomControls";
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
