@@ -1,12 +1,4 @@
 import React, {useState, useRef, useEffect} from "react";
-import {
-  Sparkles,
-  Loader2,
-  BookOpen,
-  Info,
-  HelpCircle,
-  Mic,
-} from "lucide-react";
 import {motion, AnimatePresence} from "framer-motion";
 import "./App.css";
 import AboutOverlay from "./AboutOverlay";
@@ -14,11 +6,19 @@ import HelpOverlay from "./HelpOverlay";
 import StoryViewer from "./StoryViewer";
 import CinematicControls from "./CinematicControls";
 
+// Extracted sub-components and hooks
+import useSpeechRecognition from "./useSpeechRecognition";
+import ConnectingScreen from "./ConnectingScreen";
+import Header from "./Header";
+import PromptForm from "./PromptForm";
+import GenerationStatus from "./GenerationStatus";
+import CommunityCreations from "./CommunityCreations";
+import Footer from "./Footer";
+import BottomControls from "./BottomControls";
+
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
-
-
 
 function App() {
   const [prompt, setPrompt] = useState("");
@@ -28,7 +28,6 @@ function App() {
   const [preloadProgress, setPreloadProgress] = useState(0);
   const [error, setError] = useState("");
   const [serverConnected, setServerConnected] = useState(false);
-  const [checkingConnection, setCheckingConnection] = useState(true);
   const [recentStories, setRecentStories] = useState([]);
   const [loadingStories, setLoadingStories] = useState(false);
   const abortControllerRef = useRef(null);
@@ -39,51 +38,13 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   const [activeOverlay, setActiveOverlay] = useState(null); // 'about' | 'help' | null
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
 
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const rec = new SpeechRecognition();
-      rec.continuous = false;
-      rec.interimResults = false;
-      rec.lang = "en-US";
-
-      rec.onstart = () => {
-        setIsListening(true);
-      };
-
-      rec.onend = () => {
-        setIsListening(false);
-      };
-
-      rec.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
-      };
-
-      rec.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current = rec;
+  // Speech Recognition hook
+  const { isListening, toggleListening, recognitionRef } = useSpeechRecognition(
+    (transcript) => {
+      setPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
     }
-  }, []);
-
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome or Safari.");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-    }
-  };
+  );
 
   // Poll server connection on mount
   useEffect(() => {
@@ -95,7 +56,6 @@ function App() {
           const data = await res.json();
           if (data.status === "ok" && active) {
             setServerConnected(true);
-            setCheckingConnection(false);
             return;
           }
         }
@@ -168,12 +128,10 @@ function App() {
     setLoading(true);
     setError("");
 
-    // Initialize abort controller for cancellation
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
     try {
-      // 1. Generate text first
       const response = await fetch(`${API_BASE_URL}/api/generate-story`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -191,10 +149,8 @@ function App() {
       }
 
       const data = await response.json();
-
       if (signal.aborted) return;
 
-      // 2. Preload all assets (images + audio) before showing
       setLoading(false);
       setPreloading(true);
 
@@ -209,14 +165,8 @@ function App() {
 
       const promises = data.scenes.map(async (scene, index) => {
         if (signal.aborted) return;
-
-        // Preload Image
         const imgPrompt = encodeURIComponent(
-          scene.image_prompt
-            .replace(/[^a-zA-Z0-9 ,]/g, "")
-            .replace(/\s+/g, " ")
-            .trim()
-            .slice(0, 150),
+          scene.image_prompt.replace(/[^a-zA-Z0-9 ,]/g, "").replace(/\s+/g, " ").trim().slice(0, 150)
         );
         const imgUrl = `${API_BASE_URL}/api/image?prompt=${imgPrompt}&story_id=${data.story_id}&scene_index=${index}`;
         try {
@@ -224,48 +174,35 @@ function App() {
           const imgBlob = await imgRes.blob();
           scene.cachedImageUrl = URL.createObjectURL(imgBlob);
         } catch (e) {
-          if (e.name === "AbortError") return;
-          scene.cachedImageUrl = imgUrl; // fallback
+          if (e.name !== "AbortError") scene.cachedImageUrl = imgUrl;
         }
         updateProgress();
 
         if (signal.aborted) return;
 
-        // Preload Audio
         const audioUrl = `${API_BASE_URL}/api/audio?text=${encodeURIComponent(scene.text)}&voice=${selectedVoice}&story_id=${data.story_id}&scene_index=${index}`;
         try {
           const audioRes = await fetch(audioUrl, { signal });
           const audioBlob = await audioRes.blob();
           scene.cachedAudioUrl = URL.createObjectURL(audioBlob);
         } catch (e) {
-          if (e.name === "AbortError") return;
-          scene.cachedAudioUrl = audioUrl; // fallback
+          if (e.name !== "AbortError") scene.cachedAudioUrl = audioUrl;
         }
         updateProgress();
       });
 
       await Promise.all(promises);
-
       if (signal.aborted) return;
 
-      // Background Music BGM (bypass pre-fetch to avoid CORS redirect issues)
-      const bgmUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}&mood=${selectedMood}&story_id=${data.story_id}`;
-      data.bgMusicUrl = bgmUrl;
+      data.bgMusicUrl = `${API_BASE_URL}/api/music?prompt=${encodeURIComponent(prompt.trim().slice(0, 100))}&mood=${selectedMood}&story_id=${data.story_id}`;
       setStoryData(data);
       setPreloading(false);
       setPreloadProgress(0);
       setPrompt("");
-      fetchRecentStories(); // Refresh feed
+      fetchRecentStories();
     } catch (err) {
-      if (err.name === "AbortError") {
-        console.log("Story generation aborted.");
-        return;
-      }
-      setError(
-        err.message ||
-          "An error occurred while generating your story. Please try again.",
-      );
-      console.error(err);
+      if (err.name === "AbortError") return;
+      setError(err.message || "An error occurred while generating your story.");
       setLoading(false);
       setPreloading(false);
     }
@@ -280,37 +217,7 @@ function App() {
       </div>
       <AnimatePresence mode="wait">
         {!serverConnected ? (
-          <motion.div
-            key="connecting"
-            className="server-connecting-fullscreen"
-            initial={{opacity: 1}}
-            exit={{opacity: 0}}
-            transition={{duration: 0.5}}
-          >
-            <div className="bg-objects">
-              <div className="orb orb-1"></div>
-              <div className="orb orb-2"></div>
-            </div>
-            <motion.div
-              className="connecting-card glass-panel"
-              initial={{opacity: 0, scale: 0.9}}
-              animate={{opacity: 1, scale: 1}}
-              transition={{type: "spring", stiffness: 100, damping: 15}}
-            >
-              <div className="connecting-loader-wrapper">
-                <Loader2 className="spinner-large" size={48} color="#e11d48" />
-                <div className="loader-ring-glow"></div>
-              </div>
-              <h2 className="gradient-text connecting-title">Connecting to Server</h2>
-              <p className="connecting-desc">
-                Waking up the backend. Since the server is hosted on a free Render instance, it automatically spins down after inactivity. This cold-start can take up to a minute.
-              </p>
-              <div className="pulse-container">
-                <div className="pulse-circle"></div>
-                <span className="pulse-text">Establishing secure connection...</span>
-              </div>
-            </motion.div>
-          </motion.div>
+          <ConnectingScreen />
         ) : !storyData ? (
           <motion.div
             key="home"
@@ -320,113 +227,20 @@ function App() {
             exit={{opacity: 0, scale: 0.95}}
             transition={{duration: 0.5}}
           >
-            <header className="header">
-              <motion.div
-                initial={{opacity: 0, y: -20}}
-                animate={{opacity: 1, y: 0}}
-                transition={{duration: 0.5}}
-              >
-                <div className="phase-badge glass-panel">
-                  <Sparkles className="icon" size={24} color="#ec4848ff" />
-                  <span style={{color: "#cf7171ff"}}>Powered by AI</span>
-                </div>
-                <div
-                  style={{
-                    position: "relative",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    marginBottom: "40px",
-                    width: "100%",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "40%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                      fontSize: "clamp(80px, 15vw, 180px)",
-                      fontWeight: 900,
-                      color: "transparent",
-                      WebkitTextStroke: "1px rgba(225, 29, 72, 0.15)",
-                      whiteSpace: "nowrap",
-                      zIndex: 0,
-                      pointerEvents: "none",
-                      userSelect: "none",
-                      letterSpacing: "8px",
-                    }}
-                  >
-                    MYTHWEAVER
-                  </div>
-
-                  <h1
-                    className="title gradient-text"
-                    style={{position: "relative", zIndex: 1, margin: 0}}
-                  >
-                    MythWeaver
-                  </h1>
-                </div>
-                <p className="subtitle">
-                  Enter a prompt and watch as AI crafts a cinematic narrative
-                  just for you.
-                </p>
-              </motion.div>
-            </header>
+            <Header />
 
             <main className="main-content">
-              <motion.form
+              <PromptForm
+                prompt={prompt}
+                setPrompt={setPrompt}
+                isListening={isListening}
+                toggleListening={toggleListening}
+                loading={loading}
+                preloading={preloading}
+                preloadProgress={preloadProgress}
                 onSubmit={generateStory}
-                className="prompt-form glass-panel"
-                initial={{opacity: 0, scale: 0.95}}
-                animate={{opacity: 1, scale: 1}}
-                transition={{duration: 0.5, delay: 0.2}}
-              >
-                <input
-                  type="text"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="A dragon protecting a futuristic city..."
-                  className="prompt-input"
-                  disabled={loading || preloading}
-                />
-                
-                {/* Voice Dictation Mic Button */}
-                <button
-                  type="button"
-                  className={`voice-mic-btn ${isListening ? "listening" : ""}`}
-                  onClick={toggleListening}
-                  disabled={loading || preloading}
-                  title={isListening ? "Listening... Click to stop" : "Talk instead of typing"}
-                >
-                  <Mic size={20} color={isListening ? "#f43f5e" : "#cbd5e1"} />
-                  {isListening && <span className="mic-pulse-ring"></span>}
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || preloading || !prompt.trim()}
-                  className="submit-btn"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="spinner" size={20} />
-                      <span>Writing Story...</span>
-                    </>
-                  ) : preloading ? (
-                    <>
-                      <Loader2 className="spinner" size={20} />
-                      <span>{preloadProgress}% Loaded</span>
-                    </>
-                  ) : (
-                    <>
-                      <BookOpen size={20} />
-                      <span>Create Story</span>
-                    </>
-                  )}
-                </button>
-              </motion.form>
-
-              {/* Cinematic Selection Controls */}
+              />
+              
               <CinematicControls
                 selectedVoice={selectedVoice}
                 setSelectedVoice={setSelectedVoice}
@@ -440,37 +254,12 @@ function App() {
                 preloading={preloading}
               />
 
-              {preloading && (
-                <div className="preload-bar-container">
-                  <div className="preload-text">
-                    Generating images & voice narration... {preloadProgress}%
-                  </div>
-                  <div className="preload-bar-track">
-                    <div
-                      className="preload-bar-fill"
-                      style={{width: `${preloadProgress}%`}}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Stop Story Creation Option (visible if loading or if preloading is below 10%) */}
-              {(loading || (preloading && preloadProgress < 10)) && (
-                <div style={{ display: "flex", justifyContent: "center", marginTop: "12px", width: "100%" }}>
-                  <motion.button
-                    type="button"
-                    className="stop-creation-btn glass-panel"
-                    onClick={cancelStoryGeneration}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span>Stop Story Creation</span>
-                  </motion.button>
-                </div>
-              )}
+              <GenerationStatus
+                loading={loading}
+                preloading={preloading}
+                preloadProgress={preloadProgress}
+                onCancel={cancelStoryGeneration}
+              />
 
               <AnimatePresence>
                 {error && (
@@ -485,90 +274,18 @@ function App() {
                 )}
               </AnimatePresence>
 
-              {/* Recent Stories Gallery */}
-              {recentStories.filter((s) => s.scenes && s.scenes.length > 0 && (s.scenes[0].image_url || s.scenes[0].cachedImageUrl)).length > 0 && (
-                <div className="recent-stories-section">
-                  <h3 className="section-title">
-                    <Sparkles className="icon-pink" size={20} />
-                    <span>Community Creations</span>
-                  </h3>
-                  <div className="stories-grid">
-                    {recentStories
-                      .filter((s) => s.scenes && s.scenes.length > 0 && (s.scenes[0].image_url || s.scenes[0].cachedImageUrl))
-                      .map((story) => (
-                        <motion.div
-                          key={story.story_id}
-                          className="story-card glass-panel"
-                          whileHover={{scale: 1.03, y: -4}}
-                          whileTap={{scale: 0.98}}
-                          onClick={() => playSavedStory(story)}
-                        >
-                          <div className="card-bg-container">
-                            <img
-                              src={story.scenes[0].image_url || story.scenes[0].cachedImageUrl}
-                              alt={story.title}
-                              className="card-bg-image"
-                              loading="lazy"
-                            />
-                            <div className="card-overlay"></div>
-                          </div>
-                          <div className="card-content">
-                            <h4 className="card-title">{story.title}</h4>
-                            <p className="card-prompt">"{story.prompt}"</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                  </div>
-                </div>
-              )}
+              <CommunityCreations
+                recentStories={recentStories}
+                onPlayStory={playSavedStory}
+              />
             </main>
 
-            <footer className="footer">
-              <motion.a
-                href="https://github.com/Tharunkunamalla"
-                target="_blank"
-                rel="noreferrer"
-                className="developed-by"
-                initial={{opacity: 0, y: 20}}
-                animate={{opacity: 1, y: 0}}
-                transition={{delay: 0.5}}
-                whileHover={{scale: 1.05}}
-              >
-                <span>Developed by Tharunkunamalla</span>
-                <img
-                  src="https://github.com/Tharunkunamalla.png"
-                  alt="Tharunkunamalla"
-                  className="avatar"
-                />
-              </motion.a>
-            </footer>
+            <Footer />
 
-            <div className="bottom-left-controls">
-              <motion.button
-                className="bottom-control-btn-link glass-panel"
-                onClick={() => setActiveOverlay("about")}
-                whileHover={{scale: 1.05}}
-                whileTap={{scale: 0.95}}
-                initial={{opacity: 0, y: 20}}
-                animate={{opacity: 1, y: 0}}
-                transition={{delay: 0.5}}
-              >
-                <Info size={16} />
-                <span>About</span>
-              </motion.button>
-              <motion.button
-                className="bottom-control-btn-link glass-panel"
-                onClick={() => setActiveOverlay("help")}
-                whileHover={{scale: 1.05}}
-                whileTap={{scale: 0.95}}
-                initial={{opacity: 0, y: 20}}
-                animate={{opacity: 1, y: 0}}
-                transition={{delay: 0.6}}
-              >
-                <HelpCircle size={16} />
-                <span>Help & Suggestions</span>
-              </motion.button>
-            </div>
+            <BottomControls
+              onOpenAbout={() => setActiveOverlay("about")}
+              onOpenHelp={() => setActiveOverlay("help")}
+            />
           </motion.div>
         ) : (
           <StoryViewer
@@ -587,7 +304,6 @@ function App() {
           <HelpOverlay onClose={() => setActiveOverlay(null)} apiBaseUrl={API_BASE_URL} />
         )}
       </AnimatePresence>
-
     </div>
   );
 }
